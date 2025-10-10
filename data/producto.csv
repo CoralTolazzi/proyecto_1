@@ -1,0 +1,11 @@
+id_producto,descripcion,precio,id_rubro,stock
+1,Notebook Lenovo i5 16GB,450000,1,10
+2,Notebook HP Ryzen 5 8GB,380000,1,12
+3,Monitor Samsung 24",120000,2,20
+4,Teclado mecánico Redragon,18000,2,30
+5,Mouse inalámbrico Logitech,8500,2,50
+6,Disco SSD Kingston 480GB,38000,4,40
+7,Router TP-Link AC1200,22000,3,25
+8,Auriculares JBL Bluetooth,25000,5,15
+9,Cámara Logitech C920,32000,5,10
+10,Impresora HP DeskJet,95000,2,8
