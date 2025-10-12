@@ -1,6 +1,7 @@
 from enum import Enum
 
 
+
 class Rubro(Enum):
     COMPUTADORAS = 1
     PERIFERICOS = 2

@@ -156,11 +156,24 @@ class EntityTab:
                         return
 
                 elif f_label == "Rubro":
-                    try:
-                        val = Rubro[normalize_enum_key(val)].value
-                    except KeyError:
-                        messagebox.showerror("Error", f"Rubro '{val}' no reconocido.")
+                    import repository as db
+
+                    rubro_nombre = val.strip().capitalize()  # Ej: “x” -> “X”
+                    rubros = db.get_rubros()  # Debería devolver [(1, 'Computadoras'), (2, 'Periféricos'), ...]
+
+                    # Buscar el ID correspondiente
+                    id_rubro = None
+                    for rid, nombre in rubros:
+                        if nombre.lower() == rubro_nombre.lower():
+                            id_rubro = rid
+                            break
+                        
+                    if id_rubro is None:
+                        messagebox.showerror("Error", f"Rubro '{rubro_nombre}' no encontrado en la base de datos.")
                         return
+                
+                    val = id_rubro
+                
 
                 # --- Validación numérica si aplica ---
                 elif f_type == int:

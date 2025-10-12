@@ -1,6 +1,7 @@
 import sqlite3
 import pandas as pd
 import os
+from rubro import Rubro
 
 DB_NAME = "coral_tech.db"
 SQL_FILE = "init.sql"
@@ -12,18 +13,31 @@ def create_db():
         print(f"Database '{DB_NAME}' already exists. Skipping creation.")
         return
 
+    print(f"Creating database '{DB_NAME}'...")
+
+    # 🔹 Crear conexión y cursor
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    print(f"Creating database '{DB_NAME}'...")
-
+    # 🔹 Crear las tablas desde el archivo SQL
     with open(SQL_FILE, "r", encoding="utf-8") as f:
         sql_script = f.read()
     cursor.executescript(sql_script)
     conn.commit()
 
-    print("Base tables and initial data created successfully.")
+    # 🔹 Insertar rubros desde el Enum ANTES de cerrar la conexión
+    for rubro in Rubro:
+        cursor.execute("""
+            INSERT OR IGNORE INTO rubro (id_rubro, nombre_rubro)
+            VALUES (?, ?)
+        """, (rubro.value, rubro.name.capitalize()))
+
+    conn.commit()
+    print("✅ Rubros iniciales cargados desde Rubro(Enum).")
+
+    # 🔹 Cerrar conexión al final
     conn.close()
+    print("Base tables and initial data created successfully.")
 
 
 def load_csv_data():
@@ -53,9 +67,6 @@ def load_csv_data():
 
 import pandas as pd
 import sqlite3
-
-def get_connection():
-    return sqlite3.connect("coraltech.db")
 
 def get_all_data(return_data=False):
     """Muestra o devuelve todas las tablas en la base de datos."""
@@ -313,10 +324,22 @@ def get_rubros():
     return execute_query("SELECT id_rubro, nombre_rubro FROM rubro ORDER BY id_rubro", fetch="all")
 
 def get_rubro_id_by_name(nombre_rubro: str):
-    """Devuelve el id_rubro a partir del nombre del rubro"""
-    result = execute_query("SELECT id_rubro FROM rubro WHERE nombre_rubro = ?", (nombre_rubro,), fetch="one")
-    return result[0] if result else None
-
+    """Devuelve id_rubro a partir del nombre del rubro (insensible a mayúsculas y espacios)."""
+    if not nombre_rubro:
+        return None
+    nombre_limpio = nombre_rubro.strip().lower()
+    # Usamos LOWER en la consulta para ignorar mayúsculas/minúsculas
+    result = execute_query(
+        "SELECT id_rubro FROM rubro WHERE LOWER(TRIM(nombre_rubro)) = ?",
+        (nombre_limpio,),
+        fetch="one"
+    )
+    if not result:
+        # debug: listar rubros disponibles (solo para desarrollo)
+        disponibles = execute_query("SELECT id_rubro, nombre_rubro FROM rubro ORDER BY id_rubro", fetch="all")
+        print(f"[DB DEBUG] Rubro buscado: '{nombre_rubro}' -> normalizado '{nombre_limpio}'. Rubros en BD: {disponibles}")
+        return None
+    return result[0]
 
 def create_rubro(nombre_rubro: str):
     execute_query("INSERT INTO rubro (nombre_rubro) VALUES (?)", (nombre_rubro,), commit=True)
@@ -326,6 +349,7 @@ def update_rubro(id_rubro: int, nombre_rubro: str):
 
 def delete_rubro(id_rubro: int):
     execute_query("DELETE FROM rubro WHERE id_rubro = ?", (id_rubro,), commit=True)
+
 
 # --------------- Operaciones sobre detalle_factura ---------------
 

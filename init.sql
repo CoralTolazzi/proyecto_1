@@ -34,39 +34,22 @@ INSERT INTO provincia (id_provincia, nombre_provincia) VALUES
 (24, 'Ciudad Autónoma de Buenos Aires');
 
 -- --------------------------------------------------------
-CREATE TABLE sucursal (
-  id_sucursal INTEGER PRIMARY KEY AUTOINCREMENT,
-  nombre_sucursal TEXT
-);
-
-INSERT INTO sucursal (id_sucursal, nombre_sucursal) VALUES
-(1, 'MiniMercado El Encuentro'),
-(2, 'Super La Esquina'),
-(3, 'Mercadito Don Pepe'),
-(4, 'Almacén La Familia'),
-(5, 'MiniMarket Buen Día'),
-(6, 'Supermercado El Sol'),
-(7, 'Mercado Express 24'),
-(8, 'La Canasta de Barrio'),
-(9, 'MiniMercado La Ruta'),
-(10, 'Super El Trébol');
-
--- --------------------------------------------------------
 CREATE TABLE cliente (
   id_cliente INTEGER PRIMARY KEY AUTOINCREMENT,
   nombre TEXT NOT NULL,
   id_provincia INTEGER NOT NULL,
   domicilio TEXT NOT NULL,
-  telefono TEXT NOT NULL,
+  telefono INTEGER NOT NULL,
   email TEXT NOT NULL,
   FOREIGN KEY (id_provincia) REFERENCES provincia(id_provincia)
 );
 
 -- --------------------------------------------------------
-CREATE TABLE rubro (
-  id_rubro INTEGER PRIMARY KEY AUTOINCREMENT,
-  nombre_rubro TEXT
+CREATE TABLE IF NOT EXISTS rubro (
+    id_rubro INTEGER PRIMARY KEY,
+    nombre_rubro TEXT NOT NULL
 );
+
 
 -- --------------------------------------------------------
 CREATE TABLE producto (
@@ -85,7 +68,6 @@ CREATE TABLE factura (
   id_sucursal INTEGER,
   id_cliente INTEGER,
   monto REAL,
-  FOREIGN KEY (id_sucursal) REFERENCES sucursal(id_sucursal),
   FOREIGN KEY (id_cliente) REFERENCES cliente(id_cliente)
 );
 
