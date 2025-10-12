@@ -42,8 +42,9 @@ def create_db():
 
 def load_csv_data():
     conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
 
-    # Map of table_name -> csv_filename
+    # 🔹 Map de tabla -> archivo CSV
     csv_map = {
         "cliente": "cliente.csv",
         "rubro": "rubro.csv",
@@ -52,10 +53,26 @@ def load_csv_data():
         "detalle_factura": "detalle_factura.csv"
     }
 
+    print("🧹 Limpiando tablas antes de cargar datos CSV...")
+
+    # 🔹 Desactivar restricciones de claves foráneas para poder limpiar en orden
+    cursor.execute("PRAGMA foreign_keys = OFF;")
+
+    # 🔹 Limpiar tablas en orden correcto (detalle primero)
+    for table in ["detalle_factura", "factura", "producto", "cliente", "rubro"]:
+        cursor.execute(f"DELETE FROM {table};")
+        print(f"  → Tabla '{table}' vaciada.")
+
+    conn.commit()
+    cursor.execute("PRAGMA foreign_keys = ON;")  # volver a activar
+
+    print("\n📂 Cargando datos desde CSV...\n")
+
+    # 🔹 Cargar cada CSV nuevamente
     for table, filename in csv_map.items():
         path = os.path.join(CSV_FOLDER, filename)
         if not os.path.exists(path):
-            print(f"⚠️  CSV file not found for table '{table}': {path}")
+            print(f"⚠️  No se encontró el archivo CSV para '{table}': {path}")
             continue
 
         print(f"Loading '{filename}' into table '{table}'...")
@@ -63,7 +80,8 @@ def load_csv_data():
         df.to_sql(table, conn, if_exists="append", index=False)
 
     conn.close()
-    print("CSV data loaded successfully.")
+    print("\n✅ Datos CSV cargados correctamente.")
+
 
 import pandas as pd
 import sqlite3
@@ -203,13 +221,27 @@ def get_clients():
         ORDER BY c.id_cliente
     """, fetch="all")
 
+
 def create_client(nombre, id_provincia, domicilio, telefono, email):
+    """
+    Crear cliente esperando id_provincia (int). Si te pasan nombre de provincia,
+    puedes convertirlo antes llamando a get_provincia_id_by_name().
+    """
+    # validar que exista id_provincia
+    if isinstance(id_provincia, str):
+        # si por accidente viene nombre -> buscar id
+        prov_id = get_provincia_id_by_name(id_provincia)
+        if prov_id is None:
+            print(f"[ERROR] No se encontró la provincia '{id_provincia}'")
+            return
+        id_provincia = prov_id
+
+    # inserta
     execute_query("""
         INSERT INTO cliente (nombre, id_provincia, domicilio, telefono, email)
         VALUES (?, ?, ?, ?, ?)
-    """, (nombre, id_provincia, domicilio, telefono, email))
-    print(f"[OK] Cliente agregado: {nombre}")
-
+    """, (nombre, id_provincia, domicilio, telefono, email), commit=True)
+    print(f"[OK] Cliente agregado: {nombre} (provincia id {id_provincia})")
 
 def update_client(id_cliente: int, nombre: str, id_provincia: int, domicilio: str, telefono: str, email: str):
     execute_query("""
@@ -421,6 +453,31 @@ def delete_invoice_product(id_factura: int, id_producto: int):
 
     except Exception as e:
         print(f"[DB ERROR] No se pudo eliminar producto de factura: {e}")
+
+# ---- agregar cerca de otras funciones DB (por ejemplo debajo de get_rubros) ----
+
+def get_provincias():
+    """Devuelve lista de tuplas (id_provincia, nombre_provincia)."""
+    return execute_query("SELECT id_provincia, nombre_provincia FROM provincia ORDER BY id_provincia", fetch="all")
+
+def get_provincia_id_by_name(nombre_provincia: str):
+    """Busca id_provincia por nombre (insensible a mayúsc/minúsc y espacios)."""
+    if not nombre_provincia:
+        return None
+    nombre_limpio = nombre_provincia.strip().lower()
+    result = execute_query(
+        "SELECT id_provincia FROM provincia WHERE LOWER(TRIM(nombre_provincia)) = ?",
+        (nombre_limpio,), fetch="one"
+    )
+    if not result:
+        # debug helper: listar provincias disponibles
+        disponibles = execute_query("SELECT id_provincia, nombre_provincia FROM provincia ORDER BY id_provincia", fetch="all")
+        print(f"[DB DEBUG] Provincia buscada: '{nombre_provincia}' -> normalizado '{nombre_limpio}'. Provincias en BD: {disponibles}")
+        return None
+    return result[0]
+
+
+
 
 #-------
 def get_connection():

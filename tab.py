@@ -9,7 +9,7 @@ class EntityTab:
     """Generic tab handler for CRUD operations on any entity (Product, Client, etc.)"""
     def __init__(self, parent, title, columns, get_all_fn, create_fn, update_fn, delete_fn, form_fields, dropdowns=None):
         self.parent = parent
-        self.tab = parent.tab_view.tab(title)
+        self.tab = parent.tab_view.tab(title) if hasattr(parent, "tab_view") else parent
         self.columns = columns
         self.get_all_fn = get_all_fn
         self.create_fn = create_fn
@@ -25,26 +25,34 @@ class EntityTab:
     def _setup_ui(self):
         btn_frame = ctk.CTkFrame(self.tab)
         btn_frame.pack(pady=10)
-
+    
         add_btn = ctk.CTkButton(btn_frame, text="➕ Añadir", fg_color="green", command=self._open_add_window)
         add_btn.pack(side="left", padx=5)
-
+    
         edit_btn = ctk.CTkButton(btn_frame, text="✏️ Editar", fg_color="blue", command=self._open_selected_edit)
         edit_btn.pack(side="left", padx=5)
-
+    
         delete_btn = ctk.CTkButton(btn_frame, text="🗑️Eliminar", fg_color="red", command=self._delete_selected)
         delete_btn.pack(side="left", padx=5)
-
+    
         refresh_btn = ctk.CTkButton(btn_frame, text="🔄 Actualizar", command=self._refresh)
         refresh_btn.pack(side="left", padx=5)
-
-        self.tree = ttk.Treeview(self.tab, columns=self.columns, show="headings")
+    
+        # 🔹 Solo un frame para el Treeview
+        tree_frame = ctk.CTkFrame(self.tab)
+        tree_frame.pack(expand=True, fill="both", padx=40, pady=20)
+    
+        # 🔹 Y solo una instancia del Treeview
+        self.tree = ttk.Treeview(tree_frame, columns=self.columns, show="headings", height=15)
+        self.tree.pack(expand=True, fill="both")
+    
+        # Configuración de columnas
         for col in self.columns:
             self.tree.heading(col, text=col)
             self.tree.column(col, width=120, anchor="center")
-        self.tree.pack(expand=True, fill="both", padx=20, pady=10)
-
+    
         self._refresh()
+    
 
     def _refresh(self):
         self.tree.delete(*self.tree.get_children())  # limpia
@@ -107,17 +115,24 @@ class EntityTab:
             ctk.CTkLabel(modal, text=f"{label}:").pack(pady=5)
 
             if label in self.dropdowns:
-                # 🔁 Si el campo es Rubro o Provincia, actualizamos dinámicamente desde DB
-                if label.lower() == "rubro":
-                    rubros = db.get_rubros()  # [(1, 'Computadoras'), ...]
-                    self.dropdowns[label] = [r[1] for r in rubros]
-                elif label.lower() == "provincia":
-                    provincias = db.get_provincias()  # si la tenés
-                    self.dropdowns[label] = [p[1] for p in provincias]
-
+                # actualizar dinámicamente desde DB solo si están las funciones en repository
+                try:
+                    if label.lower() == "rubro":
+                        rubros = db.get_rubros()  # [(id, nombre), ...]
+                        self.dropdowns[label] = [r[1] for r in rubros]
+                    elif label.lower() == "provincia":
+                        # si repository tiene get_provincias la usamos, si no usamos el valor que le pasaron al crear la pestaña
+                        if hasattr(db, "get_provincias"):
+                            provincias = db.get_provincias()  # [(id, nombre), ...]
+                            self.dropdowns[label] = [p[1] for p in provincias]
+                except Exception:
+                    # en caso de error dejamos lo que ya había:
+                    pass
+                
                 combo = ctk.CTkComboBox(modal, values=self.dropdowns[label], width=250, state="readonly")
                 combo.pack(pady=5)
                 entries[label] = combo
+
             else:  # Entry normal
                 entry = ctk.CTkEntry(modal, width=250)
                 if field_type in [int, float]:
@@ -154,17 +169,25 @@ class EntityTab:
 
                 # --- 🔁 Mapeo especial para dropdowns ---
                 if f_label == "Provincia":
-                    try:
-                        provincia_id = list(Provincia).index(
-                            Provincia[normalize_enum_key(val)]
-                        ) + 1
-                        val = provincia_id
-                    except KeyError:
-                        messagebox.showerror("Error", f"Provincia '{val}' no reconocida.")
-                        return
+                    # la opción del combo contiene el nombre mostrado; convertimos a id mediante repo
+                    if hasattr(db, "get_provincia_id_by_name"):
+                        id_prov = db.get_provincia_id_by_name(val)
+                        if id_prov is None:
+                            messagebox.showerror("Error", f"Provincia '{val}' no encontrada en la base de datos.")
+                            return
+                        val = id_prov
+                    else:
+                        # si no existe la utilidad en repo, intentar con el Enum Provincia (tu fallback anterior)
+                        try:
+                            provincia_id = list(Provincia).index(Provincia[normalize_enum_key(val)]) + 1
+                            val = provincia_id
+                        except Exception:
+                            messagebox.showerror("Error", f"Provincia '{val}' no reconocida.")
+                            return
+
 
                 elif f_label == "Rubro":
-                    import repository as db
+
 
                     rubro_nombre = val.strip().capitalize()  # Ej: “x” -> “X”
                     rubros = db.get_rubros()  # Debería devolver [(1, 'Computadoras'), (2, 'Periféricos'), ...]
@@ -184,6 +207,19 @@ class EntityTab:
                 
 
                 # --- Validación numérica si aplica ---
+                if f_label.lower() == "teléfono" or f_label.lower() == "telefono":
+                    if not val.isdigit() or len(val) < 7:
+                        messagebox.showerror("Error", "El número de teléfono debe contener solo dígitos y tener al menos 7 números.")
+                        return
+                
+                elif f_label.lower() == "mail" or f_label.lower() == "correo":
+                    import re
+                    if not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", val):
+                        messagebox.showerror("Error", "El correo electrónico no es válido.")
+                        return
+
+
+
                 elif f_type == int:
                     try:
                         val = int(val)
@@ -249,4 +285,6 @@ class EntityTab:
     def update_dropdown_options(self, field_name, new_options):
         """Actualiza las opciones del dropdown (ComboBox) en los formularios."""
         self.dropdowns[field_name] = new_options
+    
+
 

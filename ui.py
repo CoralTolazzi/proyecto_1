@@ -59,7 +59,7 @@ class App(ctk.CTk):
                 "Nombre": str,
                 "Provincia": str,
                 "Domicilio": str,
-                "Teléfono": str,
+                "Teléfono": int,  # <- ahora validará solo números
                 "Mail": str
             },
             dropdowns={"Provincia": [p.value for p in Provincia]}
