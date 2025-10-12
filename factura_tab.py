@@ -128,11 +128,13 @@ class FacturaForm:
         self.modo = modo
         self.factura_id = factura_id
         self.callback = callback
+        self.items = []  # productos temporales de la factura
 
         self.top = ctk.CTkToplevel(parent)
         self.top.title("Factura")
-        self.top.geometry("400x350")
+        self.top.geometry("550x550")
 
+        # --- Cliente y fecha ---
         ctk.CTkLabel(self.top, text="Cliente:").pack(pady=5)
         self.cliente_cb = ctk.CTkComboBox(self.top, values=[c[1] for c in db.get_clients()])
         self.cliente_cb.pack(pady=5)
@@ -141,22 +143,68 @@ class FacturaForm:
         self.fecha_entry = ctk.CTkEntry(self.top)
         self.fecha_entry.pack(pady=5)
 
-        if self.modo == "editar" and self.factura_id:
-            data = db.execute_query(
-                "SELECT id_cliente, fecha FROM factura WHERE id_factura = ?",
-                (self.factura_id,),
-                fetch="one"
-            )
-            if data:
-                cliente = db.execute_query(
-                    "SELECT nombre FROM cliente WHERE id_cliente = ?",
-                    (data[0],),
-                    fetch="one"
-                )[0]
-                self.cliente_cb.set(cliente)
-                self.fecha_entry.insert(0, data[1])
+        # --- Sección productos ---
+        ctk.CTkLabel(self.top, text="Agregar productos:").pack(pady=(15, 5))
 
+        productos = db.get_products()
+        self.productos_dict = {p[1]: (p[0], p[3], p[2]) for p in productos}  # nombre -> (id, stock, precio)
+
+        prod_frame = ctk.CTkFrame(self.top)
+        prod_frame.pack(pady=5)
+
+        self.producto_cb = ctk.CTkComboBox(prod_frame, values=list(self.productos_dict.keys()), width=180)
+        self.producto_cb.grid(row=0, column=0, padx=5)
+
+        self.cantidad_entry = ctk.CTkEntry(prod_frame, placeholder_text="Cantidad", width=100)
+        self.cantidad_entry.grid(row=0, column=1, padx=5)
+
+        ctk.CTkButton(prod_frame, text="➕ Agregar", command=self.agregar_producto).grid(row=0, column=2, padx=5)
+
+        # --- Tabla temporal de productos ---
+        self.tree_items = ttk.Treeview(
+            self.top,
+            columns=("producto", "cantidad", "precio", "subtotal"),
+            show="headings",
+            height=6
+        )
+        for col, text in zip(("producto", "cantidad", "precio", "subtotal"),
+                             ("Producto", "Cant.", "Precio Unit.", "Subtotal")):
+            self.tree_items.heading(col, text=text)
+            self.tree_items.column(col, width=120)
+        self.tree_items.pack(pady=10)
+
+        # --- Total ---
+        self.total_label = ctk.CTkLabel(self.top, text="Total: $0.00", font=("Arial", 14, "bold"))
+        self.total_label.pack(pady=10)
+
+        # --- Botón Guardar ---
         ctk.CTkButton(self.top, text="💾 Guardar", command=self.guardar).pack(pady=15)
+
+    def agregar_producto(self):
+        nombre = self.producto_cb.get()
+        cantidad_str = self.cantidad_entry.get().strip()
+
+        if not nombre or not cantidad_str.isdigit():
+            messagebox.showwarning("Error", "Seleccioná un producto y una cantidad válida.")
+            return
+
+        cantidad = int(cantidad_str)
+        id_prod, stock, precio = self.productos_dict[nombre]
+
+        if cantidad > stock:
+            messagebox.showwarning("Error", f"No hay stock suficiente ({stock} disponibles).")
+            return
+
+        subtotal = precio * cantidad
+        self.items.append((id_prod, nombre, cantidad, precio, subtotal))
+        self.tree_items.insert("", "end", values=(nombre, cantidad, precio, subtotal))
+
+        self.actualizar_total()
+        self.cantidad_entry.delete(0, "end")
+
+    def actualizar_total(self):
+        total = sum(item[4] for item in self.items)
+        self.total_label.configure(text=f"Total: ${total:.2f}")
 
     def guardar(self):
         cliente_nombre = self.cliente_cb.get()
@@ -165,28 +213,50 @@ class FacturaForm:
         if not cliente_nombre or not fecha:
             messagebox.showwarning("Error", "Completá todos los campos.")
             return
+        if not self.items:
+            messagebox.showwarning("Error", "Agregá al menos un producto.")
+            return
 
-        id_cliente = db.execute_query(
+        # obtener id_cliente
+        id_cliente_row = db.execute_query(
             "SELECT id_cliente FROM cliente WHERE nombre = ?",
             (cliente_nombre,),
             fetch="one"
-        )[0]
+        )
+        if not id_cliente_row:
+            messagebox.showerror("Error", "Cliente no encontrado.")
+            return
+        id_cliente = id_cliente_row[0]
 
-        if self.modo == "crear":
+        # insertar factura (cabecera)
+        db.execute_query(
+            "INSERT INTO factura (id_cliente, fecha) VALUES (?, ?)",
+            (id_cliente, fecha),
+            commit=True
+        )
+
+        # obtener el id de la factura recién creada usando MAX
+        factura_row = db.execute_query("SELECT MAX(id_factura) FROM factura", fetch="one")
+        factura_id = factura_row[0] if factura_row else None
+        if factura_id is None:
+            messagebox.showerror("Error", "No se pudo obtener el id de la factura.")
+            return
+
+        # insertar detalle (usar columna precio_unitario — no existe 'subtotal' en init.sql)
+        for id_prod, _, cantidad, precio, subtotal in self.items:
             db.execute_query(
-                "INSERT INTO factura (id_cliente, fecha) VALUES (?, ?)",
-                (id_cliente, fecha),
+                "INSERT INTO detalle_factura (id_factura, id_producto, cantidad, precio_unitario) VALUES (?, ?, ?, ?)",
+                (factura_id, id_prod, cantidad, precio),
                 commit=True
             )
-            messagebox.showinfo("Éxito", "Factura creada correctamente.")
-        else:
+            # actualizar stock
             db.execute_query(
-                "UPDATE factura SET id_cliente = ?, fecha = ? WHERE id_factura = ?",
-                (id_cliente, fecha, self.factura_id),
+                "UPDATE producto SET stock = stock - ? WHERE id_producto = ?",
+                (cantidad, id_prod),
                 commit=True
             )
-            messagebox.showinfo("Éxito", "Factura actualizada correctamente.")
 
+        messagebox.showinfo("Éxito", "Factura guardada correctamente.")
         self.top.destroy()
         if self.callback:
             self.callback()
