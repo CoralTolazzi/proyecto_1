@@ -229,11 +229,12 @@ def get_invoices():
 
 def get_invoice_details(factura_id: int):
     """
-    Devuelve el detalle de una factura: producto, cantidad, precio unitario, subtotal.
+    Devuelve el detalle de una factura: producto, cantidad, precio unitario, subtotal, id_producto.
     Hace JOIN entre detalle_factura y producto.
     """
     query = """
         SELECT 
+            p.id_producto,
             p.descripcion AS producto,
             df.cantidad,
             df.precio_unitario,
@@ -247,14 +248,40 @@ def get_invoice_details(factura_id: int):
 
     detalles = [
         {
-            "producto": row[0],
-            "cantidad": row[1],
-            "precio_unit": row[2],
-            "subtotal": row[3],
+            "id_producto": row[0],
+            "producto": row[1],
+            "cantidad": row[2],
+            "precio_unitario": row[3],
+            "subtotal": row[4],
         }
         for row in rows
     ]
     return detalles
+
+def get_detalles_por_factura(id_factura):
+    with sqlite3.connect(DB_NAME) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                p.id_producto,
+                p.descripcion AS producto_nombre,
+                df.cantidad,
+                df.precio_unitario
+            FROM detalle_factura AS df
+            JOIN producto AS p ON df.id_producto = p.id_producto
+            WHERE df.id_factura = ?
+        """, (id_factura,))
+        result = [
+            {
+                "id_producto": row[0],
+                "producto_nombre": row[1],
+                "cantidad": row[2],
+                "precio_unitario": row[3]
+            }
+            for row in cursor.fetchall()
+        ]
+    return result
+
 
 
 # -------------- Rubros ------------
@@ -276,4 +303,23 @@ def update_rubro(id_rubro: int, nombre_rubro: str):
 def delete_rubro(id_rubro: int):
     execute_query("DELETE FROM rubro WHERE id_rubro = ?", (id_rubro,), commit=True)
 
+# --------------- Operaciones sobre detalle_factura ---------------
 
+def add_invoice_product(id_factura: int, id_producto: int, cantidad: int, precio_unitario: float):
+    """
+    Agrega un producto a una factura en detalle_factura.
+    """
+    execute_query("""
+        INSERT INTO detalle_factura (id_factura, id_producto, cantidad, precio_unitario)
+        VALUES (?, ?, ?, ?)
+    """, (id_factura, id_producto, cantidad, precio_unitario), commit=True)
+
+
+def delete_invoice_product(id_factura: int, id_producto: int):
+    """
+    Elimina un producto específico del detalle de una factura.
+    """
+    execute_query("""
+        DELETE FROM detalle_factura
+        WHERE id_factura = ? AND id_producto = ?
+    """, (id_factura, id_producto), commit=True)

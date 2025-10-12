@@ -86,7 +86,7 @@ class FacturaTab:
             self.tree_detalle.delete(row)
 
         for d in detalles:
-            self.tree_detalle.insert("", "end", values=(d["producto"], d["cantidad"], d["precio_unit"], d["subtotal"]))
+            self.tree_detalle.insert("", "end", values=(d["producto"], d["cantidad"], d["precio_unitario"], d["subtotal"]))
 
     # =====================
     # CRUD DE FACTURAS
@@ -113,11 +113,39 @@ class FacturaTab:
         factura_id = self.tree_facturas.item(selected[0])["values"][0]
 
         if messagebox.askyesno("Confirmar", f"¿Eliminar la factura #{factura_id}?"):
-            db.execute_query("DELETE FROM factura WHERE id_factura = ?", (factura_id,), commit=True)
             db.execute_query("DELETE FROM detalle_factura WHERE id_factura = ?", (factura_id,), commit=True)
+            db.execute_query("DELETE FROM factura WHERE id_factura = ?", (factura_id,), commit=True)
             messagebox.showinfo("Éxito", f"Factura #{factura_id} eliminada.")
             self.cargar_facturas()
+    def cargar_detalles_factura(self, id_factura):
+        detalles = db.get_detalles_por_factura(id_factura)
+        self.tree.delete(*self.tree.get_children())  # limpia antes de cargar
 
+        for det in detalles:
+            producto = det["producto_nombre"]
+            cantidad = det["cantidad"]
+            precio_unit = det["precio_unitario"]
+            subtotal = cantidad * precio_unit
+
+        # Mostrar los valores en la tabla
+            self.tree.insert("", "end", values=(
+                producto,
+                cantidad,
+                f"${precio_unit:,.2f}",
+                f"${subtotal:,.2f}",
+                "🗑️"
+            ))
+
+        self.actualizar_total()
+
+
+    def on_tree_click(self, event):
+        item = self.tree.identify_row(event.y)
+        column = self.tree.identify_column(event.x)
+        if column == "#5":  # la columna de "Acción"
+            if item:
+                self.tree.delete(item)
+                self.actualizar_total()
 
 # =============================
 # FORMULARIO DE FACTURA (POPUP)
@@ -162,15 +190,17 @@ class FacturaForm:
         # --- Tabla temporal ---
         self.tree_items = ttk.Treeview(
             self.top,
-            columns=("producto", "cantidad", "precio", "subtotal"),
+            columns=("producto", "cantidad", "precio", "subtotal", "accion"),
             show="headings",
             height=6
         )
-        for col, text in zip(("producto", "cantidad", "precio", "subtotal"),
-                             ("Producto", "Cant.", "Precio Unit.", "Subtotal")):
+        for col, text in zip(("producto", "cantidad", "precio", "subtotal", "accion"),
+                             ("Producto", "Cant.", "Precio Unit.", "Subtotal", "Eliminar")):
             self.tree_items.heading(col, text=text)
-            self.tree_items.column(col, width=130)
+            self.tree_items.column(col, width=110, anchor="center")
+
         self.tree_items.pack(pady=10)
+        self.tree_items.bind("<Button-1>", self.on_tree_click)
 
         # --- Total ---
         self.total_label = ctk.CTkLabel(self.top, text="Total: $0.00", font=("Arial", 14, "bold"))
@@ -183,9 +213,10 @@ class FacturaForm:
         if self.modo == "editar" and self.factura_id:
             self.cargar_datos_factura()
 
-    # ================================
-    # Cargar datos existentes al editar
-    # ================================
+    # -----------------------
+    # FUNCIONES AUXILIARES
+    # -----------------------
+
     def cargar_datos_factura(self):
         factura = db.execute_query(
             "SELECT f.fecha, c.nombre FROM factura f "
@@ -203,13 +234,11 @@ class FacturaForm:
         # Cargar detalle
         detalles = db.get_invoice_details(self.factura_id)
         for d in detalles:
-            self.items.append((d["id_producto"], d["producto"], d["cantidad"], d["precio_unit"], d["subtotal"]))
-            self.tree_items.insert("", "end", values=(d["producto"], d["cantidad"], d["precio_unit"], d["subtotal"]))
+            item = (d["id_producto"], d["producto"], d["cantidad"], d["precio_unitario"], d["subtotal"])
+            self.items.append(item)
+            self.tree_items.insert("", "end", values=(d["producto"], d["cantidad"], d["precio_unitario"], d["subtotal"], "🗑"))
         self.actualizar_total()
 
-    # ============================
-    # Lógica de agregar productos
-    # ============================
     def agregar_producto(self):
         nombre = self.producto_cb.get()
         cantidad_str = self.cantidad_entry.get().strip()
@@ -227,17 +256,31 @@ class FacturaForm:
 
         subtotal = precio * cantidad
         self.items.append((id_prod, nombre, cantidad, precio, subtotal))
-        self.tree_items.insert("", "end", values=(nombre, cantidad, precio, subtotal))
+        self.tree_items.insert("", "end", values=(nombre, cantidad, precio, subtotal, "🗑"))
         self.actualizar_total()
         self.cantidad_entry.delete(0, "end")
+
+    def on_tree_click(self, event):
+        """Detecta clics en la columna de eliminar."""
+        region = self.tree_items.identify("region", event.x, event.y)
+        if region != "cell":
+            return
+
+        column = self.tree_items.identify_column(event.x)
+        if column == "#5":  # Columna de "Eliminar"
+            item = self.tree_items.identify_row(event.y)
+            if not item:
+                return
+
+            index = self.tree_items.index(item)
+            del self.items[index]
+            self.tree_items.delete(item)
+            self.actualizar_total()
 
     def actualizar_total(self):
         total = sum(item[4] for item in self.items)
         self.total_label.configure(text=f"Total: ${total:.2f}")
 
-    # ============================
-    # Guardar (crear o editar)
-    # ============================
     def guardar(self):
         cliente_nombre = self.cliente_cb.get()
         fecha = self.fecha_entry.get().strip()
@@ -258,7 +301,6 @@ class FacturaForm:
         id_cliente = id_cliente_row[0]
 
         if self.modo == "crear":
-            # Crear nueva factura
             db.execute_query(
                 "INSERT INTO factura (id_cliente, fecha) VALUES (?, ?)",
                 (id_cliente, fecha),
@@ -266,22 +308,16 @@ class FacturaForm:
             )
             factura_row = db.execute_query("SELECT MAX(id_factura) FROM factura", fetch="one")
             factura_id = factura_row[0]
-
         else:
-            # Actualizar cabecera
             factura_id = self.factura_id
             db.execute_query(
                 "UPDATE factura SET id_cliente = ?, fecha = ? WHERE id_factura = ?",
                 (id_cliente, fecha, factura_id),
                 commit=True
             )
-            # Borrar detalles previos antes de reinsertar
-            db.execute_query(
-                "DELETE FROM detalle_factura WHERE id_factura = ?",
-                (factura_id,), commit=True
-            )
+            db.execute_query("DELETE FROM detalle_factura WHERE id_factura = ?", (factura_id,), commit=True)
 
-        # Insertar los detalles nuevamente
+        # Insertar los nuevos detalles
         for id_prod, _, cantidad, precio, _ in self.items:
             db.execute_query(
                 "INSERT INTO detalle_factura (id_factura, id_producto, cantidad, precio_unitario) "
@@ -290,7 +326,10 @@ class FacturaForm:
                 commit=True
             )
 
-        messagebox.showinfo("Éxito", "Factura actualizada correctamente." if self.modo == "editar" else "Factura guardada correctamente.")
+        messagebox.showinfo(
+            "Éxito",
+            "Factura actualizada correctamente." if self.modo == "editar" else "Factura guardada correctamente."
+        )
         self.top.destroy()
         if self.callback:
             self.callback()
