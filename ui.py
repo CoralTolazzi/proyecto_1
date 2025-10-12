@@ -22,7 +22,7 @@ class App(ctk.CTk):
         self.tab_view = ctk.CTkTabview(self)
         self.tab_view.pack(expand=True, fill="both")
 
-        for name in ["Productos", "Clientes", "Facturas", "Rubros"]:
+        for name in ["Productos", "Clientes", "Rubros"]:
             self.tab_view.add(name)
 
         self._setup_treeview_style()
@@ -84,7 +84,7 @@ class App(ctk.CTk):
         self.rubros_tab = rubros_tab  # para acceder desde el método _refresh_rubro_data
 
         # --- Facturas ---
-        FacturaTab(self, self.tab_view)
+        FacturaTab(self.tab_view)
 
     # --- Recarga la lista de rubros desde la base de datos ---
     def reload_rubros(self):

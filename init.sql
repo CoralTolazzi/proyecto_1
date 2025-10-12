@@ -62,7 +62,7 @@ CREATE TABLE cliente (
 
 -- --------------------------------------------------------
 CREATE TABLE rubro (
-  id_rubro INTEGER PRIMARY KEY,
+  id_rubro INTEGER PRIMARY KEY AUTOINCREMENT,
   nombre_rubro TEXT
 );
 
