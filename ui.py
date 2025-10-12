@@ -65,19 +65,23 @@ class App(ctk.CTk):
         # --- Rubros ---
         def _create_rubro_and_refresh(nombre_rubro):
             db.create_rubro(nombre_rubro)
-            # 🔁 Refresca el combo de rubros en Productos
-            self.product_tab.update_dropdown_options("Rubro", self.reload_rubros())
+            self._refresh_rubro_data()
 
-        tab.EntityTab(
+        def _delete_rubro_and_refresh(id_rubro):
+            db.delete_rubro(id_rubro)
+            self._refresh_rubro_data()
+
+        rubros_tab = tab.EntityTab(
             self,
             "Rubros",
             ("ID", "Nombre Rubro"),
             db.get_rubros,
             _create_rubro_and_refresh,
             db.update_rubro,
-            db.delete_rubro,
+            _delete_rubro_and_refresh,
             {"Nombre Rubro": str}
         )
+        self.rubros_tab = rubros_tab  # para acceder desde el método _refresh_rubro_data
 
         # --- Facturas ---
         FacturaTab(self, self.tab_view)
@@ -86,6 +90,13 @@ class App(ctk.CTk):
     def reload_rubros(self):
         rubros = db.get_rubros()
         return [r[1] for r in rubros] if rubros else []
+    
+    def _refresh_rubro_data(self):
+        """Recarga rubros desde la BD y actualiza el combo en Productos y la tabla Rubros."""
+        nuevos_rubros = self.reload_rubros()
+        self.product_tab.update_dropdown_options("Rubro", nuevos_rubros)
+        self.rubros_tab._refresh()
+
 
     # --- Estilo visual de la tabla ---
     def _setup_treeview_style(self):
