@@ -132,7 +132,7 @@ class FacturaForm:
 
         self.top = ctk.CTkToplevel(parent)
         self.top.title("Factura")
-        self.top.geometry("550x550")
+        self.top.geometry("600x600")
 
         # --- Cliente y fecha ---
         ctk.CTkLabel(self.top, text="Cliente:").pack(pady=5)
@@ -145,9 +145,8 @@ class FacturaForm:
 
         # --- Sección productos ---
         ctk.CTkLabel(self.top, text="Agregar productos:").pack(pady=(15, 5))
-
         productos = db.get_products()
-        self.productos_dict = {p[1]: (p[0], p[3], p[2]) for p in productos}  # nombre -> (id, stock, precio)
+        self.productos_dict = {p[1]: (p[0], p[3], p[2]) for p in productos}  # nombre → (id, stock, precio)
 
         prod_frame = ctk.CTkFrame(self.top)
         prod_frame.pack(pady=5)
@@ -160,7 +159,7 @@ class FacturaForm:
 
         ctk.CTkButton(prod_frame, text="➕ Agregar", command=self.agregar_producto).grid(row=0, column=2, padx=5)
 
-        # --- Tabla temporal de productos ---
+        # --- Tabla temporal ---
         self.tree_items = ttk.Treeview(
             self.top,
             columns=("producto", "cantidad", "precio", "subtotal"),
@@ -170,7 +169,7 @@ class FacturaForm:
         for col, text in zip(("producto", "cantidad", "precio", "subtotal"),
                              ("Producto", "Cant.", "Precio Unit.", "Subtotal")):
             self.tree_items.heading(col, text=text)
-            self.tree_items.column(col, width=120)
+            self.tree_items.column(col, width=130)
         self.tree_items.pack(pady=10)
 
         # --- Total ---
@@ -180,6 +179,37 @@ class FacturaForm:
         # --- Botón Guardar ---
         ctk.CTkButton(self.top, text="💾 Guardar", command=self.guardar).pack(pady=15)
 
+        # Si estamos en modo editar → cargar datos existentes
+        if self.modo == "editar" and self.factura_id:
+            self.cargar_datos_factura()
+
+    # ================================
+    # Cargar datos existentes al editar
+    # ================================
+    def cargar_datos_factura(self):
+        factura = db.execute_query(
+            "SELECT f.fecha, c.nombre FROM factura f "
+            "JOIN cliente c ON f.id_cliente = c.id_cliente "
+            "WHERE f.id_factura = ?", (self.factura_id,), fetch="one"
+        )
+        if not factura:
+            messagebox.showerror("Error", "No se encontró la factura.")
+            return
+
+        fecha, cliente = factura
+        self.cliente_cb.set(cliente)
+        self.fecha_entry.insert(0, fecha)
+
+        # Cargar detalle
+        detalles = db.get_invoice_details(self.factura_id)
+        for d in detalles:
+            self.items.append((d["id_producto"], d["producto"], d["cantidad"], d["precio_unit"], d["subtotal"]))
+            self.tree_items.insert("", "end", values=(d["producto"], d["cantidad"], d["precio_unit"], d["subtotal"]))
+        self.actualizar_total()
+
+    # ============================
+    # Lógica de agregar productos
+    # ============================
     def agregar_producto(self):
         nombre = self.producto_cb.get()
         cantidad_str = self.cantidad_entry.get().strip()
@@ -198,7 +228,6 @@ class FacturaForm:
         subtotal = precio * cantidad
         self.items.append((id_prod, nombre, cantidad, precio, subtotal))
         self.tree_items.insert("", "end", values=(nombre, cantidad, precio, subtotal))
-
         self.actualizar_total()
         self.cantidad_entry.delete(0, "end")
 
@@ -206,6 +235,9 @@ class FacturaForm:
         total = sum(item[4] for item in self.items)
         self.total_label.configure(text=f"Total: ${total:.2f}")
 
+    # ============================
+    # Guardar (crear o editar)
+    # ============================
     def guardar(self):
         cliente_nombre = self.cliente_cb.get()
         fecha = self.fecha_entry.get().strip()
@@ -217,46 +249,48 @@ class FacturaForm:
             messagebox.showwarning("Error", "Agregá al menos un producto.")
             return
 
-        # obtener id_cliente
         id_cliente_row = db.execute_query(
-            "SELECT id_cliente FROM cliente WHERE nombre = ?",
-            (cliente_nombre,),
-            fetch="one"
+            "SELECT id_cliente FROM cliente WHERE nombre = ?", (cliente_nombre,), fetch="one"
         )
         if not id_cliente_row:
             messagebox.showerror("Error", "Cliente no encontrado.")
             return
         id_cliente = id_cliente_row[0]
 
-        # insertar factura (cabecera)
-        db.execute_query(
-            "INSERT INTO factura (id_cliente, fecha) VALUES (?, ?)",
-            (id_cliente, fecha),
-            commit=True
-        )
-
-        # obtener el id de la factura recién creada usando MAX
-        factura_row = db.execute_query("SELECT MAX(id_factura) FROM factura", fetch="one")
-        factura_id = factura_row[0] if factura_row else None
-        if factura_id is None:
-            messagebox.showerror("Error", "No se pudo obtener el id de la factura.")
-            return
-
-        # insertar detalle (usar columna precio_unitario — no existe 'subtotal' en init.sql)
-        for id_prod, _, cantidad, precio, subtotal in self.items:
+        if self.modo == "crear":
+            # Crear nueva factura
             db.execute_query(
-                "INSERT INTO detalle_factura (id_factura, id_producto, cantidad, precio_unitario) VALUES (?, ?, ?, ?)",
+                "INSERT INTO factura (id_cliente, fecha) VALUES (?, ?)",
+                (id_cliente, fecha),
+                commit=True
+            )
+            factura_row = db.execute_query("SELECT MAX(id_factura) FROM factura", fetch="one")
+            factura_id = factura_row[0]
+
+        else:
+            # Actualizar cabecera
+            factura_id = self.factura_id
+            db.execute_query(
+                "UPDATE factura SET id_cliente = ?, fecha = ? WHERE id_factura = ?",
+                (id_cliente, fecha, factura_id),
+                commit=True
+            )
+            # Borrar detalles previos antes de reinsertar
+            db.execute_query(
+                "DELETE FROM detalle_factura WHERE id_factura = ?",
+                (factura_id,), commit=True
+            )
+
+        # Insertar los detalles nuevamente
+        for id_prod, _, cantidad, precio, _ in self.items:
+            db.execute_query(
+                "INSERT INTO detalle_factura (id_factura, id_producto, cantidad, precio_unitario) "
+                "VALUES (?, ?, ?, ?)",
                 (factura_id, id_prod, cantidad, precio),
                 commit=True
             )
-            # actualizar stock
-            db.execute_query(
-                "UPDATE producto SET stock = stock - ? WHERE id_producto = ?",
-                (cantidad, id_prod),
-                commit=True
-            )
 
-        messagebox.showinfo("Éxito", "Factura guardada correctamente.")
+        messagebox.showinfo("Éxito", "Factura actualizada correctamente." if self.modo == "editar" else "Factura guardada correctamente.")
         self.top.destroy()
         if self.callback:
             self.callback()
