@@ -4,7 +4,7 @@ from PIL import Image
 import repository as db
 import tab
 from factura_tab import FacturaTab
-from provincia import Provincia  # ✅ esta se mantiene
+from provincia import Provincia
 
 
 class App(ctk.CTk):
@@ -28,7 +28,7 @@ class App(ctk.CTk):
         self._setup_treeview_style()
 
         # --- Productos ---
-        tab.EntityTab(
+        self.product_tab = tab.EntityTab(
             self,
             "Productos",
             ("ID", "Descripción", "Precio", "Stock", "Rubro"),
@@ -42,10 +42,7 @@ class App(ctk.CTk):
                 "Stock": int,
                 "Rubro": str
             },
-            dropdowns={
-                # 🔹 Ahora carga los rubros directamente desde la base de datos
-                "Rubro": [r[1] for r in db.get_rubros()]
-            }
+            dropdowns={"Rubro": self.reload_rubros()}
         )
 
         # --- Clientes ---
@@ -66,12 +63,17 @@ class App(ctk.CTk):
         )
 
         # --- Rubros ---
+        def _create_rubro_and_refresh(nombre_rubro):
+            db.create_rubro(nombre_rubro)
+            # 🔁 Refresca el combo de rubros en Productos
+            self.product_tab.update_dropdown_options("Rubro", self.reload_rubros())
+
         tab.EntityTab(
             self,
             "Rubros",
             ("ID", "Nombre Rubro"),
             db.get_rubros,
-            db.create_rubro,
+            _create_rubro_and_refresh,
             db.update_rubro,
             db.delete_rubro,
             {"Nombre Rubro": str}
@@ -80,19 +82,33 @@ class App(ctk.CTk):
         # --- Facturas ---
         FacturaTab(self, self.tab_view)
 
+    # --- Recarga la lista de rubros desde la base de datos ---
+    def reload_rubros(self):
+        rubros = db.get_rubros()
+        return [r[1] for r in rubros] if rubros else []
+
+    # --- Estilo visual de la tabla ---
     def _setup_treeview_style(self):
         style = ttk.Style(self)
         style.theme_use("clam")
-        style.configure("Treeview",
-                        background="#2b2b2b",
-                        foreground="white",
-                        fieldbackground="#2b2b2b",
-                        rowheight=25)
-        style.map("Treeview",
-                  background=[("selected", "#1f6aa5")],
-                  foreground=[("selected", "white")])
+        style.configure(
+            "Treeview",
+            background="#2b2b2b",
+            foreground="white",
+            fieldbackground="#2b2b2b",
+            rowheight=25
+        )
+        style.map(
+            "Treeview",
+            background=[("selected", "#1f6aa5")],
+            foreground=[("selected", "white")]
+        )
 
 
 def run_ui():
     app = App()
     app.mainloop()
+
+
+if __name__ == "__main__":
+    run_ui()

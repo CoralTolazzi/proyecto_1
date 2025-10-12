@@ -19,6 +19,7 @@ class EntityTab:
         self.dropdowns = dropdowns or {}
         self.tree = None
         self._setup_ui()
+    
 
 
     def _setup_ui(self):
@@ -220,3 +221,8 @@ class EntityTab:
         values = self.tree.item(selected, "values")
         entity_id = values[0]
         self._confirm_delete(entity_id)
+    
+    def update_dropdown_options(self, field_name, new_options):
+        """Actualiza las opciones del dropdown (ComboBox) en los formularios."""
+        self.dropdowns[field_name] = new_options
+
