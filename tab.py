@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from tkinter import ttk, messagebox
-
+import repository as db 
 from provincia import Provincia
 from rubro import Rubro
 
@@ -106,7 +106,15 @@ class EntityTab:
         for label, field_type in self.form_fields.items():
             ctk.CTkLabel(modal, text=f"{label}:").pack(pady=5)
 
-            if label in self.dropdowns:  # Dropdown (ComboBox)
+            if label in self.dropdowns:
+                # 🔁 Si el campo es Rubro o Provincia, actualizamos dinámicamente desde DB
+                if label.lower() == "rubro":
+                    rubros = db.get_rubros()  # [(1, 'Computadoras'), ...]
+                    self.dropdowns[label] = [r[1] for r in rubros]
+                elif label.lower() == "provincia":
+                    provincias = db.get_provincias()  # si la tenés
+                    self.dropdowns[label] = [p[1] for p in provincias]
+
                 combo = ctk.CTkComboBox(modal, values=self.dropdowns[label], width=250, state="readonly")
                 combo.pack(pady=5)
                 entries[label] = combo
