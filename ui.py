@@ -12,8 +12,9 @@ class App(ctk.CTk):
         super().__init__()
         self.title("CORAL TECH")
         self.geometry("900x650")
-
+        
         # --- LOGO PRINCIPAL ---
+        
         logo_img = ctk.CTkImage(light_image=Image.open("logo_coraltech.jpg"), size=(250, 90))
         logo_label = ctk.CTkLabel(self, image=logo_img, text="")
         logo_label.pack(pady=10)
@@ -86,8 +87,11 @@ class App(ctk.CTk):
         )
         self.rubros_tab = rubros_tab  # para acceder desde el método _refresh_rubro_data
 
+
         # --- Facturas ---
         FacturaTab(self.tab_view)
+    
+    
 
     # --- Recarga la lista de rubros desde la base de datos ---
     def reload_rubros(self):

@@ -51,26 +51,33 @@ def load_csv_data():
     conn.close()
     print("CSV data loaded successfully.")
 
+import pandas as pd
+import sqlite3
 
-def get_all_data(db_name="coral_tech.db"):
-    conn = sqlite3.connect(db_name)
+def get_connection():
+    return sqlite3.connect("coraltech.db")
+
+def get_all_data(return_data=False):
+    """Muestra o devuelve todas las tablas en la base de datos."""
+    conn = get_connection()
     cursor = conn.cursor()
-
-    print("\n📂 Tables in database:")
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    tables = [t[0] for t in cursor.fetchall()]
 
-    tables = cursor.fetchall().copy()
-
-    for table in tables:
-        print("  -", table[0])
+    data_dict = {}
 
     for table in tables:
-        print("\n🧱 Table", table[0], ":")
-        cursor.execute(f"SELECT * FROM {table[0]} LIMIT 20;")
-        for row in cursor.fetchall():
-            print(row)
+        df = pd.read_sql_query(f"SELECT * FROM {table}", conn)
+        data_dict[table] = df
+        if not return_data:
+            print(f"\n=== {table.upper()} ===")
+            print(df)
 
     conn.close()
+
+    if return_data:
+        return data_dict
+
 
 
 def delete_db():
@@ -99,17 +106,21 @@ def delete_table(table_name):
         conn.close()
 
 
-def execute_query(query, params=(), fetch=False):
-    import sqlite3
+def execute_query(query, params=(), fetch=False, commit=True):
     connection = sqlite3.connect("coral_tech.db")
     cursor = connection.cursor()
     try:
         cursor.execute(query, params)
-        if fetch:
+
+        result = None
+        if fetch == "all":
             result = cursor.fetchall()
-        else:
-            result = None
-        connection.commit()  # 🔥 importante, sin esto no guarda los INSERT
+        elif fetch == "one":
+            result = cursor.fetchone()
+
+        if commit:
+            connection.commit()
+
         return result
     except sqlite3.Error as e:
         print(f"[DB ERROR] {e}")
@@ -139,21 +150,31 @@ def get_product_by_id(id_producto: int):
     """, (id_producto,), fetch="one")
 
 
-def create_product(descripcion: str, precio: float, rubro_nombre: str, stock: int):
-    id_rubro = get_rubro_id_by_name(rubro_nombre)
-    execute_query("""
-        INSERT INTO producto (descripcion, precio, id_rubro, stock)
-        VALUES (?, ?, ?, ?)
-    """, (descripcion, precio, id_rubro, stock), commit=True)
+def create_product(descripcion, precio, stock, id_rubro):
+    try:
+        execute_query(
+            """
+            INSERT INTO producto (descripcion, precio, stock, id_rubro)
+            VALUES (?, ?, ?, ?)
+            """,
+            (descripcion, precio, stock, id_rubro),
+            commit=True
+        )
+        print(f"[OK] Producto agregado: {descripcion} (Rubro ID {id_rubro})")
+    except Exception as e:
+        print(f"[DB ERROR] No se pudo crear producto: {e}")
 
 
-def update_product(id_producto: int, descripcion: str, precio: float, stock: int, rubro_nombre: str):
-    id_rubro = get_rubro_id_by_name(rubro_nombre)
-    execute_query("""
-        UPDATE producto
-        SET descripcion = ?, precio = ?, stock = ?, id_rubro = ?
-        WHERE id_producto = ?
-    """, (descripcion, precio, stock, id_rubro, id_producto), commit=True)
+def update_product(id_producto: int, descripcion: str, precio: float, stock: int, id_rubro: int):
+    try:
+        execute_query("""
+            UPDATE producto
+            SET descripcion = ?, precio = ?, stock = ?, id_rubro = ?
+            WHERE id_producto = ?
+        """, (descripcion, precio, stock, id_rubro, id_producto), commit=True)
+        print(f"[OK] Producto {id_producto} actualizado correctamente.")
+    except Exception as e:
+        print(f"[DB ERROR] No se pudo actualizar el producto {id_producto}: {e}")
 
 
 def delete_product(id_producto: int):
@@ -309,20 +330,74 @@ def delete_rubro(id_rubro: int):
 # --------------- Operaciones sobre detalle_factura ---------------
 
 def add_invoice_product(id_factura: int, id_producto: int, cantidad: int, precio_unitario: float):
-    """
-    Agrega un producto a una factura en detalle_factura.
-    """
-    execute_query("""
-        INSERT INTO detalle_factura (id_factura, id_producto, cantidad, precio_unitario)
-        VALUES (?, ?, ?, ?)
-    """, (id_factura, id_producto, cantidad, precio_unitario), commit=True)
+    try:
+        # Verificar stock disponible
+        stock_actual = execute_query(
+            "SELECT stock FROM producto WHERE id_producto = ?", 
+            (id_producto,), fetch=True
+        )
+        if not stock_actual:
+            print(f"[DB ERROR] Producto {id_producto} no existe.")
+            return
+
+        stock_disponible = stock_actual[0][0]
+        if cantidad > stock_disponible:
+            print(f"[ERROR] Stock insuficiente. Disponible: {stock_disponible}, solicitado: {cantidad}")
+            return
+
+        # Insertar detalle
+        execute_query("""
+            INSERT INTO detalle_factura (id_factura, id_producto, cantidad, precio_unitario)
+            VALUES (?, ?, ?, ?)
+        """, (id_factura, id_producto, cantidad, precio_unitario))
+
+        # Actualizar stock
+        execute_query("""
+            UPDATE producto
+            SET stock = stock - ?
+            WHERE id_producto = ?
+        """, (cantidad, id_producto))
+
+        print(f"[OK] Producto {id_producto} agregado a factura {id_factura}. Stock actualizado (-{cantidad}).")
+
+    except Exception as e:
+        print(f"[DB ERROR] No se pudo agregar producto a factura: {e}")
 
 
 def delete_invoice_product(id_factura: int, id_producto: int):
     """
-    Elimina un producto específico del detalle de una factura.
+    Elimina un producto del detalle de una factura y restaura el stock.
     """
-    execute_query("""
-        DELETE FROM detalle_factura
-        WHERE id_factura = ? AND id_producto = ?
-    """, (id_factura, id_producto), commit=True)
+    try:
+        # Obtener la cantidad eliminada
+        result = execute_query("""
+            SELECT cantidad FROM detalle_factura
+            WHERE id_factura = ? AND id_producto = ?
+        """, (id_factura, id_producto), fetch=True)
+
+        if result and result[0]:
+            cantidad_eliminada = result[0][0]
+        else:
+            cantidad_eliminada = 0
+
+        # Borrar detalle
+        execute_query("""
+            DELETE FROM detalle_factura
+            WHERE id_factura = ? AND id_producto = ?
+        """, (id_factura, id_producto))
+
+        # Restaurar stock
+        execute_query("""
+            UPDATE producto
+            SET stock = stock + ?
+            WHERE id_producto = ?
+        """, (cantidad_eliminada, id_producto))
+
+        print(f"[OK] Producto {id_producto} eliminado de factura {id_factura}. Stock restaurado (+{cantidad_eliminada}).")
+
+    except Exception as e:
+        print(f"[DB ERROR] No se pudo eliminar producto de factura: {e}")
+
+#-------
+def get_connection():
+    return sqlite3.connect("coral_tech.db")
