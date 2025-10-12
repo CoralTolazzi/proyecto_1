@@ -49,7 +49,7 @@ class App(ctk.CTk):
         tab.EntityTab(
             self,
             "Clientes",
-            ("ID", "Nombre", "Provincia", "Domicilio"),
+            ("ID", "Nombre", "Provincia", "Domicilio", "Teléfono", "Mail"),
             db.get_clients,
             db.create_client,
             db.update_client,
@@ -57,10 +57,13 @@ class App(ctk.CTk):
             {
                 "Nombre": str,
                 "Provincia": str,
-                "Domicilio": str
+                "Domicilio": str,
+                "Teléfono": str,
+                "Mail": str
             },
             dropdowns={"Provincia": [p.value for p in Provincia]}
         )
+
 
         # --- Rubros ---
         def _create_rubro_and_refresh(nombre_rubro):

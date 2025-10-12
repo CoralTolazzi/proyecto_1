@@ -57,6 +57,8 @@ CREATE TABLE cliente (
   nombre TEXT NOT NULL,
   id_provincia INTEGER NOT NULL,
   domicilio TEXT NOT NULL,
+  telefono TEXT NOT NULL,
+  email TEXT NOT NULL,
   FOREIGN KEY (id_provincia) REFERENCES provincia(id_provincia)
 );
 

@@ -159,14 +159,28 @@ def delete_product(id_producto: int):
 
 # --------------- Clients ---------------
 
-
 def get_clients():
     return execute_query("""
-        SELECT c.id_cliente, c.nombre, p.nombre_provincia, c.domicilio
+        SELECT c.id_cliente, c.nombre, p.nombre_provincia, c.domicilio, c.telefono, c.email
         FROM cliente AS c
         JOIN provincia AS p ON c.id_provincia = p.id_provincia
         ORDER BY c.id_cliente
     """, fetch="all")
+
+
+def create_client(nombre: str, domicilio: str, id_provincia: int, telefono: str, email: str):
+    execute_query("""
+        INSERT INTO cliente (nombre, domicilio, id_provincia, telefono, email)
+        VALUES (?, ?, ?, ?, ?)
+    """, (nombre, domicilio, id_provincia, telefono, email), commit=True)
+
+
+def update_client(id_cliente: int, nombre: str, id_provincia: int, domicilio: str, telefono: str, email: str):
+    execute_query("""
+        UPDATE cliente
+        SET nombre = ?, id_provincia = ?, domicilio = ?, telefono = ?, email = ?
+        WHERE id_cliente = ?
+    """, (nombre, id_provincia, domicilio, telefono, email, id_cliente), commit=True)
 
 
 def get_client_by_id(id_cliente: int):
@@ -176,22 +190,6 @@ def get_client_by_id(id_cliente: int):
         JOIN provincia AS p ON c.id_provincia = p.id_provincia
         WHERE c.id_cliente = ?
     """, (id_cliente,), fetch="one")
-
-
-def create_client(nombre: str, domicilio: str, id_provincia: int):
-    execute_query("""
-        INSERT INTO cliente (nombre, domicilio, id_provincia)
-        VALUES (?, ?, ?)
-    """, (nombre, domicilio, id_provincia), commit=True)
-
-
-def update_client(id_cliente: int, nombre: str, id_provincia: int, domicilio: str):
-    execute_query("""
-        UPDATE cliente
-        SET nombre = ?, id_provincia = ?, domicilio = ?
-        WHERE id_cliente = ?
-    """, (nombre, id_provincia, domicilio, id_cliente), commit=True)
-
 
 
 def delete_client(id_cliente: int):
