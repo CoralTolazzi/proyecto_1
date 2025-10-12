@@ -199,23 +199,60 @@ def delete_client(id_cliente: int):
 # --------------- Facturas ---------------
 
 def get_invoices():
-    return [
-        {"id": 1, "cliente": "Ana Gómez", "fecha": "2025-09-30", "total": 15500.0},
-        {"id": 2, "cliente": "Luis Martínez", "fecha": "2025-10-01", "total": 9800.0},
-    ]
+    """
+    Devuelve todas las facturas con el nombre del cliente y el total calculado.
+    Hace JOIN entre factura y cliente.
+    """
+    query = """
+        SELECT 
+            f.id_factura AS id,
+            c.nombre AS cliente,
+            f.fecha AS fecha,
+            COALESCE(SUM(df.cantidad * df.precio_unitario), 0) AS total
+        FROM factura AS f
+        JOIN cliente AS c ON f.id_cliente = c.id_cliente
+        LEFT JOIN detalle_factura AS df ON f.id_factura = df.id_factura
+        GROUP BY f.id_factura, c.nombre, f.fecha
+        ORDER BY f.id_factura;
+    """
+    rows = execute_query(query, fetch="all")
 
-def get_invoice_details(factura_id):
-    if factura_id == 1:
-        return [
-            {"producto": "Notebook Lenovo", "cantidad": 1, "precio_unit": 15000.0, "subtotal": 15000.0},
-            {"producto": "Mouse Logitech", "cantidad": 1, "precio_unit": 500.0, "subtotal": 500.0},
-        ]
-    elif factura_id == 2:
-        return [
-            {"producto": "Teclado Redragon", "cantidad": 2, "precio_unit": 4900.0, "subtotal": 9800.0},
-        ]
-    else:
-        return []
+    # Convertimos cada fila a un dict para la UI
+    facturas = [
+        {"id": row[0], "cliente": row[1], "fecha": row[2], "total": row[3]}
+        for row in rows
+    ]
+    return facturas
+
+
+def get_invoice_details(factura_id: int):
+    """
+    Devuelve el detalle de una factura: producto, cantidad, precio unitario, subtotal.
+    Hace JOIN entre detalle_factura y producto.
+    """
+    query = """
+        SELECT 
+            p.descripcion AS producto,
+            df.cantidad,
+            df.precio_unitario,
+            (df.cantidad * df.precio_unitario) AS subtotal
+        FROM detalle_factura AS df
+        JOIN producto AS p ON df.id_producto = p.id_producto
+        WHERE df.id_factura = ?
+        ORDER BY p.descripcion;
+    """
+    rows = execute_query(query, (factura_id,), fetch="all")
+
+    detalles = [
+        {
+            "producto": row[0],
+            "cantidad": row[1],
+            "precio_unit": row[2],
+            "subtotal": row[3],
+        }
+        for row in rows
+    ]
+    return detalles
 
 
 # -------------- Rubros ------------

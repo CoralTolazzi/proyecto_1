@@ -1,5 +1,6 @@
 import customtkinter as ctk
 from tkinter import ttk
+from PIL import Image
 import repository as db
 import tab
 from factura_tab import FacturaTab
@@ -10,11 +11,18 @@ from provincia import Provincia
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Coral Tech")
+        self.title("CORAL TECH")
         self.geometry("900x650")
 
+        # --- LOGO PRINCIPAL ---
+        logo_img = ctk.CTkImage(light_image=Image.open("logo_coraltech.jpg"), size=(250, 90))
+        logo_label = ctk.CTkLabel(self, image=logo_img, text="")
+        logo_label.pack(pady=10)
+
+        # --- TABS ---
         self.tab_view = ctk.CTkTabview(self)
         self.tab_view.pack(expand=True, fill="both")
+
         for name in ["Productos", "Clientes", "Facturas", "Rubros"]:
             self.tab_view.add(name)
 
@@ -36,7 +44,7 @@ class App(ctk.CTk):
                 "Rubro": str
             },
             dropdowns={
-                "Rubro": [r.name.replace("_", " ").title() for r in Rubro]  # "COMPUTADORAS" → "Computadoras"
+                "Rubro": [r.name.replace("_", " ").title() for r in Rubro]
             }
         )
 
@@ -54,7 +62,7 @@ class App(ctk.CTk):
                 "Provincia": str,
                 "Domicilio": str
             },
-            dropdowns={"Provincia": [p.value for p in Provincia]}  # ComboBox no editable
+            dropdowns={"Provincia": [p.value for p in Provincia]}
         )
 
         # --- Rubros ---
@@ -70,7 +78,6 @@ class App(ctk.CTk):
         )
 
         # --- Facturas ---
-
         FacturaTab(self, self.tab_view)
 
     def _setup_treeview_style(self):
@@ -84,6 +91,7 @@ class App(ctk.CTk):
         style.map("Treeview",
                   background=[("selected", "#1f6aa5")],
                   foreground=[("selected", "white")])
+
 
 def run_ui():
     app = App()
