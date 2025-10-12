@@ -99,20 +99,24 @@ def delete_table(table_name):
         conn.close()
 
 
-def execute_query(query: str, params: tuple = (), fetch: str = None, commit: bool = False):
-    """Helper to execute SQL queries safely"""
-    with sqlite3.connect(DB_NAME) as conn:
-        cursor = conn.cursor()
+def execute_query(query, params=(), fetch=False):
+    import sqlite3
+    connection = sqlite3.connect("coral_tech.db")
+    cursor = connection.cursor()
+    try:
         cursor.execute(query, params)
-
-        if commit:
-            conn.commit()
-
-        if fetch == "one":
-            return cursor.fetchone()
-        elif fetch == "all":
-            return cursor.fetchall()
+        if fetch:
+            result = cursor.fetchall()
+        else:
+            result = None
+        connection.commit()  # 🔥 importante, sin esto no guarda los INSERT
+        return result
+    except sqlite3.Error as e:
+        print(f"[DB ERROR] {e}")
         return None
+    finally:
+        connection.close()
+
 
 
 # --------------- Products ---------------
@@ -167,12 +171,12 @@ def get_clients():
         ORDER BY c.id_cliente
     """, fetch="all")
 
-
-def create_client(nombre: str, domicilio: str, id_provincia: int, telefono: str, email: str):
+def create_client(nombre, id_provincia, domicilio, telefono, email):
     execute_query("""
-        INSERT INTO cliente (nombre, domicilio, id_provincia, telefono, email)
+        INSERT INTO cliente (nombre, id_provincia, domicilio, telefono, email)
         VALUES (?, ?, ?, ?, ?)
-    """, (nombre, domicilio, id_provincia, telefono, email), commit=True)
+    """, (nombre, id_provincia, domicilio, telefono, email))
+    print(f"[OK] Cliente agregado: {nombre}")
 
 
 def update_client(id_cliente: int, nombre: str, id_provincia: int, domicilio: str, telefono: str, email: str):
@@ -192,8 +196,9 @@ def get_client_by_id(id_cliente: int):
     """, (id_cliente,), fetch="one")
 
 
-def delete_client(id_cliente: int):
-    execute_query("DELETE FROM cliente WHERE id_cliente = ?", (id_cliente,), commit=True)
+def delete_client(id_cliente):
+    execute_query("DELETE FROM cliente WHERE id_cliente = ?", (id_cliente,))
+    print(f"[OK] Cliente con ID {id_cliente} eliminado.")
 
 
 # --------------- Facturas ---------------

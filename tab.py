@@ -128,6 +128,14 @@ class EntityTab:
                     widget.insert(0, str(value))
 
         def submit():
+            import unicodedata
+
+            # --- Función auxiliar para normalizar texto de Enum ---
+            def normalize_enum_key(s: str):
+                # Quita tildes y normaliza a mayúsculas con "_"
+                nfkd = unicodedata.normalize('NFKD', s)
+                return ''.join([c for c in nfkd if not unicodedata.combining(c)]).upper().replace(" ", "_")
+
             new_values = []
             for f_label, f_type in self.form_fields.items():
                 w = entries[f_label]
@@ -138,26 +146,21 @@ class EntityTab:
 
                 # --- 🔁 Mapeo especial para dropdowns ---
                 if f_label == "Provincia":
-                    # Convertir nombre → id (posición en Enum + 1)
-                    provincia_id = list(Provincia).index(Provincia[val.upper().replace(" ", "_")]) + 1 \
-                        if val else None
-                    val = provincia_id
-                elif f_label == "Rubro":
-                    # Convertir nombre mostrado → id del Enum Rubro, tolerando acentos
-                    import unicodedata
-
-                    def normalize_enum_key(s: str):
-                        # Quita tildes y normaliza a mayúsculas con _
-                        nfkd = unicodedata.normalize('NFKD', s)
-                        return ''.join([c for c in nfkd if not unicodedata.combining(c)]).upper().replace(" ", "_")
-
-                    nombre_enum = normalize_enum_key(val)
                     try:
-                        val = Rubro[nombre_enum].value
+                        provincia_id = list(Provincia).index(
+                            Provincia[normalize_enum_key(val)]
+                        ) + 1
+                        val = provincia_id
+                    except KeyError:
+                        messagebox.showerror("Error", f"Provincia '{val}' no reconocida.")
+                        return
+
+                elif f_label == "Rubro":
+                    try:
+                        val = Rubro[normalize_enum_key(val)].value
                     except KeyError:
                         messagebox.showerror("Error", f"Rubro '{val}' no reconocido.")
                         return
-
 
                 # --- Validación numérica si aplica ---
                 elif f_type == int:
@@ -175,7 +178,7 @@ class EntityTab:
 
                 new_values.append(val)
 
-            # Ejecutar create o update
+            # --- Ejecutar create o update ---
             if action == "Editar":
                 try:
                     entity_id_typed = int(current_values[0])
