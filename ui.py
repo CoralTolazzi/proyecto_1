@@ -4,8 +4,7 @@ from PIL import Image
 import repository as db
 import tab
 from factura_tab import FacturaTab
-from rubro import Rubro
-from provincia import Provincia
+from provincia import Provincia  # ✅ esta se mantiene
 
 
 class App(ctk.CTk):
@@ -44,7 +43,8 @@ class App(ctk.CTk):
                 "Rubro": str
             },
             dropdowns={
-                "Rubro": [r.name.replace("_", " ").title() for r in Rubro]
+                # 🔹 Ahora carga los rubros directamente desde la base de datos
+                "Rubro": [r[1] for r in db.get_rubros()]
             }
         )
 

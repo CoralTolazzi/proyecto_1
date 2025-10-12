@@ -135,14 +135,16 @@ def get_product_by_id(id_producto: int):
     """, (id_producto,), fetch="one")
 
 
-def create_product(descripcion: str, precio: float, id_rubro: int, stock: int):
+def create_product(descripcion: str, precio: float, rubro_nombre: str, stock: int):
+    id_rubro = get_rubro_id_by_name(rubro_nombre)
     execute_query("""
         INSERT INTO producto (descripcion, precio, id_rubro, stock)
         VALUES (?, ?, ?, ?)
     """, (descripcion, precio, id_rubro, stock), commit=True)
 
 
-def update_product(id_producto: int, descripcion: str, precio: float, stock: int, id_rubro: int):
+def update_product(id_producto: int, descripcion: str, precio: float, stock: int, rubro_nombre: str):
+    id_rubro = get_rubro_id_by_name(rubro_nombre)
     execute_query("""
         UPDATE producto
         SET descripcion = ?, precio = ?, stock = ?, id_rubro = ?
@@ -258,6 +260,12 @@ def get_invoice_details(factura_id: int):
 # -------------- Rubros ------------
 def get_rubros():
     return execute_query("SELECT id_rubro, nombre_rubro FROM rubro ORDER BY id_rubro", fetch="all")
+
+def get_rubro_id_by_name(nombre_rubro: str):
+    """Devuelve el id_rubro a partir del nombre del rubro"""
+    result = execute_query("SELECT id_rubro FROM rubro WHERE nombre_rubro = ?", (nombre_rubro,), fetch="one")
+    return result[0] if result else None
+
 
 def create_rubro(nombre_rubro: str):
     execute_query("INSERT INTO rubro (nombre_rubro) VALUES (?)", (nombre_rubro,), commit=True)
