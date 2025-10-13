@@ -111,13 +111,29 @@ class FacturaTab:
         if not selected:
             messagebox.showwarning("Atención", "Seleccioná una factura para eliminar.")
             return
+
         factura_id = self.tree_facturas.item(selected[0])["values"][0]
 
-        if messagebox.askyesno("Confirmar", f"¿Eliminar la factura #{factura_id}?"):
-            db.execute_query("DELETE FROM detalle_factura WHERE id_factura = ?", (factura_id,), commit=True)
-            db.execute_query("DELETE FROM factura WHERE id_factura = ?", (factura_id,), commit=True)
-            messagebox.showinfo("Éxito", f"Factura #{factura_id} eliminada.")
-            self.cargar_facturas()
+        if messagebox.askyesno(
+            "Confirmar eliminación",
+            f"¿Seguro que querés eliminar la factura #{factura_id}?."
+        ):
+            try:
+                # ✅ Llamamos a la función de repository que maneja todo (detalle + stock)
+                db.delete_factura(factura_id)
+
+                messagebox.showinfo(
+                    "Éxito",
+                    f"Factura #{factura_id} eliminada correctamente."
+                )
+                self.cargar_facturas()
+            except Exception as e:
+                messagebox.showerror(
+                    "Error",
+                    f"Ocurrió un problema al eliminar la factura:\n{e}"
+                )
+
+            
     def cargar_detalles_factura(self, id_factura):
         detalles = db.get_detalles_por_factura(id_factura)
         self.tree.delete(*self.tree.get_children())  # limpia antes de cargar
