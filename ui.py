@@ -5,6 +5,9 @@ import repository as db
 import tab
 from factura_tab import FacturaTab
 from provincia import Provincia
+from dashboard import DashboardWindow
+from dashboard import abrir_dashboard
+
 
 
 class App(ctk.CTk):
@@ -90,6 +93,18 @@ class App(ctk.CTk):
 
         # --- Facturas ---
         FacturaTab(self.tab_view)
+
+        # --- Dashboard ---
+        dashboard_button = ctk.CTkButton(
+            self,
+            text="📊 Ver Dashboard",
+            command=lambda: abrir_dashboard(self),
+            fg_color="#1f6aa5",
+            hover_color="#144870"
+        )
+        dashboard_button.pack(pady=10)
+
+
     
     
 

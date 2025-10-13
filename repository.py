@@ -476,7 +476,50 @@ def get_provincia_id_by_name(nombre_provincia: str):
         return None
     return result[0]
 
+DB_PATH = "coral_tech.db"
 
+
+def get_all_facturas():
+    """Obtiene todas las facturas con el total calculado y datos de cliente."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    query = """
+        SELECT 
+            f.id_factura,
+            c.nombre AS cliente,
+            f.fecha,
+            SUM(df.cantidad * df.precio_unitario) AS total
+        FROM factura f
+        JOIN cliente c ON f.id_cliente = c.id_cliente
+        JOIN detalle_factura df ON f.id_factura = df.id_factura
+        GROUP BY f.id_factura, c.nombre, f.fecha
+        ORDER BY f.fecha DESC
+    """
+    cursor.execute(query)
+    data = cursor.fetchall()
+    conn.close()
+    return data
+
+def get_all_detalle_factura():
+    """Obtiene todos los detalles de factura (factura, producto, cantidad, precio)."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    query = """
+        SELECT 
+            df.id_factura,
+            p.descripcion AS producto,
+            df.cantidad,
+            df.precio_unitario
+        FROM detalle_factura df
+        JOIN producto p ON df.id_producto = p.id_producto
+        ORDER BY df.id_factura
+    """
+    cursor.execute(query)
+    data = cursor.fetchall()
+    conn.close()
+    return data
 
 
 #-------
