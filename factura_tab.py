@@ -32,9 +32,7 @@ class FacturaTab:
         btn_frame.pack(pady=10)
 
         ctk.CTkButton(btn_frame, text="➕ Nueva Factura", command=self.agregar_factura).grid(row=0, column=0, padx=5)
-        ctk.CTkButton(btn_frame, text="✏️ Editar Factura", command=self.editar_factura).grid(row=0, column=1, padx=5)
-        ctk.CTkButton(btn_frame, text="🗑️ Eliminar Factura", fg_color="red", command=self.eliminar_factura).grid(row=0, column=2, padx=5)
-        ctk.CTkButton(btn_frame, text="🔄 Actualizar", command=self.cargar_facturas).grid(row=0, column=3, padx=5)
+        ctk.CTkButton(btn_frame, text="🔄 Actualizar", command=self.cargar_facturas).grid(row=0, column=1, padx=5)
 
         # --- Detalle de factura ---
         ttk.Label(
@@ -97,42 +95,8 @@ class FacturaTab:
         win = FacturaForm(self.frame, modo="crear", callback=self.cargar_facturas)
         win.top.focus()
 
-    def editar_factura(self):
-        selected = self.tree_facturas.selection()
-        if not selected:
-            messagebox.showwarning("Atención", "Seleccioná una factura para editar.")
-            return
-        factura_id = self.tree_facturas.item(selected[0])["values"][0]
-        win = FacturaForm(self.frame, modo="editar", factura_id=factura_id, callback=self.cargar_facturas)
-        win.top.focus()
 
-    def eliminar_factura(self):
-        selected = self.tree_facturas.selection()
-        if not selected:
-            messagebox.showwarning("Atención", "Seleccioná una factura para eliminar.")
-            return
-
-        factura_id = self.tree_facturas.item(selected[0])["values"][0]
-
-        if messagebox.askyesno(
-            "Confirmar eliminación",
-            f"¿Seguro que querés eliminar la factura #{factura_id}?."
-        ):
-            try:
-                # ✅ Llamamos a la función de repository que maneja todo (detalle + stock)
-                db.delete_factura(factura_id)
-
-                messagebox.showinfo(
-                    "Éxito",
-                    f"Factura #{factura_id} eliminada correctamente."
-                )
-                self.cargar_facturas()
-            except Exception as e:
-                messagebox.showerror(
-                    "Error",
-                    f"Ocurrió un problema al eliminar la factura:\n{e}"
-                )
-
+    
     def cargar_detalles_factura(self, id_factura):
         detalles = db.get_detalles_por_factura(id_factura)
         self.tree.delete(*self.tree.get_children())  # limpia antes de cargar
@@ -288,24 +252,7 @@ class FacturaForm:
         self.actualizar_total()
         self.cantidad_entry.delete(0, "end")
 
-    def on_tree_click(self, event):
-        """Detecta clics en la columna de eliminar y borra la fila (lista items también)."""
-        region = self.tree_items.identify("region", event.x, event.y)
-        if region != "cell":
-            return
-
-        column = self.tree_items.identify_column(event.x)
-        # la columna 5 corresponde a "accion" (Eliminar)
-        if column == "#5":
-            item_id = self.tree_items.identify_row(event.y)
-            if not item_id:
-                return
-            idx = self.tree_items.index(item_id)
-            # si está en modo editar: no borramos de la BD todavía, solo quitamos de la lista y tabla;
-            # al guardar la edición se sobrescribirá todo el detalle (véase guardar()).
-            del self.items[idx]
-            self.tree_items.delete(item_id)
-            self.actualizar_total()
+    
 
     def actualizar_total(self):
         total = sum(item[4] for item in self.items)
@@ -342,7 +289,6 @@ class FacturaForm:
             return
         id_cliente = id_cliente_row[0]
 
-        # --- manejo stock y detalles en modo editar ---
         if self.modo == "editar":
             factura_id = self.factura_id
 

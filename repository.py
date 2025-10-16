@@ -458,44 +458,6 @@ def get_all_detalle_factura():
     return data
 
 
-def delete_factura(id_factura: int):
-    """
-    Elimina una factura y devuelve al stock los productos asociados en detalle_factura.
-    """
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
-    try:
-        # 1️⃣ Obtener los productos y cantidades asociados a la factura
-        cursor.execute("""
-            SELECT id_producto, cantidad
-            FROM detalle_factura
-            WHERE id_factura = ?
-        """, (id_factura,))
-        detalles = cursor.fetchall()
-
-        # 2️⃣ Devolver stock de cada producto
-        for id_producto, cantidad in detalles:
-            cursor.execute("""
-                UPDATE producto
-                SET stock = stock + ?
-                WHERE id_producto = ?
-            """, (cantidad, id_producto))
-
-        # 3️⃣ Borrar detalle y factura
-        cursor.execute("DELETE FROM detalle_factura WHERE id_factura = ?", (id_factura,))
-        cursor.execute("DELETE FROM factura WHERE id_factura = ?", (id_factura,))
-
-        conn.commit()
-        print(f"[OK] Factura {id_factura} eliminada. Stock restituido correctamente.")
-
-    except Exception as e:
-        conn.rollback()
-        print(f"[DB ERROR] Error al eliminar factura {id_factura}: {e}")
-
-    finally:
-        conn.close()
-
 
 # --------------- Invoice Products Operations ---------------
 

@@ -2,7 +2,6 @@ import customtkinter as ctk
 from tkinter import ttk, messagebox
 import repository as db 
 from provincia import Provincia
-from rubro import Rubro
 
 
 class EntityTab:
@@ -64,8 +63,8 @@ class EntityTab:
             tag = "even" if i % 2 == 0 else "odd"
             self.tree.insert("", "end", values=display_row, tags=(tag,))
 
-        self.tree.tag_configure("even", background="#2b2b2b")
-        self.tree.tag_configure("odd", background="#3c3f41")
+        self.tree.tag_configure("even", background="#968787")
+        self.tree.tag_configure("odd", background="#6f8ea2")
         self.tree.bind("<Double-1>", self._on_double_click)
 
     def _on_double_click(self, event):
