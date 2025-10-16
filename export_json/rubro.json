@@ -1,0 +1,26 @@
+[
+    {
+        "id_rubro":1,
+        "nombre_rubro":"Computadoras"
+    },
+    {
+        "id_rubro":2,
+        "nombre_rubro":"Periféricos"
+    },
+    {
+        "id_rubro":3,
+        "nombre_rubro":"Redes"
+    },
+    {
+        "id_rubro":4,
+        "nombre_rubro":"Almacenamiento"
+    },
+    {
+        "id_rubro":5,
+        "nombre_rubro":"Accesorios"
+    },
+    {
+        "id_rubro":6,
+        "nombre_rubro":"Auriculares"
+    }
+]

@@ -1,0 +1,14 @@
+[
+    {
+        "name":"cliente",
+        "seq":11
+    },
+    {
+        "name":"producto",
+        "seq":11
+    },
+    {
+        "name":"factura",
+        "seq":10
+    }
+]

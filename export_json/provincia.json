@@ -1,0 +1,98 @@
+[
+    {
+        "id_provincia":1,
+        "nombre_provincia":"Buenos Aires"
+    },
+    {
+        "id_provincia":2,
+        "nombre_provincia":"Catamarca"
+    },
+    {
+        "id_provincia":3,
+        "nombre_provincia":"Chaco"
+    },
+    {
+        "id_provincia":4,
+        "nombre_provincia":"Chubut"
+    },
+    {
+        "id_provincia":5,
+        "nombre_provincia":"Córdoba"
+    },
+    {
+        "id_provincia":6,
+        "nombre_provincia":"Corrientes"
+    },
+    {
+        "id_provincia":7,
+        "nombre_provincia":"Entre Ríos"
+    },
+    {
+        "id_provincia":8,
+        "nombre_provincia":"Formosa"
+    },
+    {
+        "id_provincia":9,
+        "nombre_provincia":"Jujuy"
+    },
+    {
+        "id_provincia":10,
+        "nombre_provincia":"La Pampa"
+    },
+    {
+        "id_provincia":11,
+        "nombre_provincia":"La Rioja"
+    },
+    {
+        "id_provincia":12,
+        "nombre_provincia":"Mendoza"
+    },
+    {
+        "id_provincia":13,
+        "nombre_provincia":"Misiones"
+    },
+    {
+        "id_provincia":14,
+        "nombre_provincia":"Neuquén"
+    },
+    {
+        "id_provincia":15,
+        "nombre_provincia":"Río Negro"
+    },
+    {
+        "id_provincia":16,
+        "nombre_provincia":"Salta"
+    },
+    {
+        "id_provincia":17,
+        "nombre_provincia":"San Juan"
+    },
+    {
+        "id_provincia":18,
+        "nombre_provincia":"San Luis"
+    },
+    {
+        "id_provincia":19,
+        "nombre_provincia":"Santa Cruz"
+    },
+    {
+        "id_provincia":20,
+        "nombre_provincia":"Santa Fe"
+    },
+    {
+        "id_provincia":21,
+        "nombre_provincia":"Santiago del Estero"
+    },
+    {
+        "id_provincia":22,
+        "nombre_provincia":"Tierra del Fuego"
+    },
+    {
+        "id_provincia":23,
+        "nombre_provincia":"Tucumán"
+    },
+    {
+        "id_provincia":24,
+        "nombre_provincia":"Ciudad Autónoma de Buenos Aires"
+    }
+]

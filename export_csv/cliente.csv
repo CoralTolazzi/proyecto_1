@@ -1,0 +1,12 @@
+﻿id_cliente,nombre,id_provincia,domicilio,telefono,email
+1,Ana Gómez,1,Calle Falsa 123,1123456789,ana.gomez@gmail.com
+2,Luis Martínez,2,Av. Siempreviva 456,1134567890,luis.martinez@yahoo.com
+3,María Fernández,3,Mitre 789,1145678901,maria.fernandez@hotmail.com
+4,Carlos Pérez,4,San Martín 101,1156789012,carlos.perez@gmail.com
+5,Lucía Rodríguez,5,Belgrano 202,1167890123,lucia.rodriguez@outlook.com
+6,Jorge López,6,Rivadavia 303,1178901234,jorge.lopez@gmail.com
+7,Sofía Díaz,7,Corrientes 404,1189012345,sofia.diaz@hotmail.com
+8,Martín Sánchez,8,Lavalle 505,1190123456,martin.sanchez@yahoo.com
+9,Valentina Torres,9,Urquiza 606,1101234567,valentina.torres@gmail.com
+10,Federico Ramírez,10,Castelli 707,1112345678,federico.ramirez@outlook.com
+11,Felipe Gomez,10,Suipacha 300,114845968,felipe@gmail.com
