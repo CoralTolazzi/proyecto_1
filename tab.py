@@ -19,8 +19,6 @@ class EntityTab:
         self.dropdowns = dropdowns or {}
         self.tree = None
         self._setup_ui()
-    
-
 
     def _setup_ui(self):
         btn_frame = ctk.CTkFrame(self.tab)
@@ -52,7 +50,6 @@ class EntityTab:
             self.tree.column(col, width=120, anchor="center")
     
         self._refresh()
-    
 
     def _refresh(self):
         self.tree.delete(*self.tree.get_children())  # limpia
@@ -78,14 +75,37 @@ class EntityTab:
         values = self.tree.item(item, "values")
         self._open_edit_window(values)
 
-
     def _open_add_window(self):
         self._open_form_window("Agregar", self.create_fn)
-
 
     def _open_edit_window(self, values):
         entity_id = values[0]
         self._open_form_window("Editar", lambda *args: self.update_fn(entity_id, *args), values)
+
+    def _open_selected_edit(self):
+        """Open edit window for the currently selected item."""
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showwarning("Atención", "Seleccione un registro para editar.")
+            return
+        values = self.tree.item(selected, "values")
+        self._open_edit_window(values)
+
+    def _delete_selected(self):
+        """Delete the selected item after confirmation."""
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showwarning("Atención", "Seleccione un registro para eliminar.")
+            return
+        values = self.tree.item(selected, "values")
+        entity_id = values[0]
+        self._confirm_delete(entity_id)
+
+    def _confirm_delete(self, entity_id):
+        confirm = messagebox.askyesno("Confirmar", "¿Seguro que desea eliminar este registro?")
+        if confirm:
+            self.delete_fn(entity_id)
+            self._refresh()
 
     def _open_form_window(self, action, submit_fn, current_values=None):
         modal = ctk.CTkToplevel(self.parent)
@@ -185,10 +205,7 @@ class EntityTab:
                             messagebox.showerror("Error", f"Provincia '{val}' no reconocida.")
                             return
 
-
                 elif f_label == "Rubro":
-
-
                     rubro_nombre = val.strip().capitalize()  # Ej: “x” -> “X”
                     rubros = db.get_rubros()  # Debería devolver [(1, 'Computadoras'), (2, 'Periféricos'), ...]
 
@@ -204,7 +221,6 @@ class EntityTab:
                         return
                 
                     val = id_rubro
-                
 
                 # --- Validación numérica si aplica ---
                 if f_label.lower() == "teléfono" or f_label.lower() == "telefono":
@@ -217,8 +233,6 @@ class EntityTab:
                     if not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", val):
                         messagebox.showerror("Error", "El correo electrónico no es válido.")
                         return
-
-
 
                 elif f_type == int:
                     try:
@@ -255,36 +269,6 @@ class EntityTab:
             fg_color="blue" if action == "Editar" else "green"
         ).pack(pady=20)
 
-    def _confirm_delete(self, entity_id):
-        confirm = messagebox.askyesno("Confirmar", "¿Seguro que desea eliminar este registro?")
-        if confirm:
-            self.delete_fn(entity_id)
-            self._refresh()
-
-
-    def _open_selected_edit(self):
-        """Open edit window for the currently selected item."""
-        selected = self.tree.selection()
-        if not selected:
-            messagebox.showwarning("Atención", "Seleccione un registro para editar.")
-            return
-        values = self.tree.item(selected, "values")
-        self._open_edit_window(values)
-
-
-    def _delete_selected(self):
-        """Delete the selected item after confirmation."""
-        selected = self.tree.selection()
-        if not selected:
-            messagebox.showwarning("Atención", "Seleccione un registro para eliminar.")
-            return
-        values = self.tree.item(selected, "values")
-        entity_id = values[0]
-        self._confirm_delete(entity_id)
-    
     def update_dropdown_options(self, field_name, new_options):
         """Actualiza las opciones del dropdown (ComboBox) en los formularios."""
         self.dropdowns[field_name] = new_options
-    
-
-

@@ -4,9 +4,12 @@ import os
 from rubro import Rubro
 
 DB_NAME = "coral_tech.db"
+DB_PATH = "coral_tech.db"
 SQL_FILE = "init.sql"
 CSV_FOLDER = "data"
 
+
+# --------------- Database Management ---------------
 
 def create_db():
     if os.path.exists(DB_NAME):
@@ -83,32 +86,6 @@ def load_csv_data():
     print("\n✅ Datos CSV cargados correctamente.")
 
 
-import pandas as pd
-import sqlite3
-
-def get_all_data(return_data=False):
-    """Muestra o devuelve todas las tablas en la base de datos."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-    tables = [t[0] for t in cursor.fetchall()]
-
-    data_dict = {}
-
-    for table in tables:
-        df = pd.read_sql_query(f"SELECT * FROM {table}", conn)
-        data_dict[table] = df
-        if not return_data:
-            print(f"\n=== {table.upper()} ===")
-            print(df)
-
-    conn.close()
-
-    if return_data:
-        return data_dict
-
-
-
 def delete_db():
     if os.path.exists(DB_NAME):
         os.remove(DB_NAME)
@@ -135,6 +112,10 @@ def delete_table(table_name):
         conn.close()
 
 
+def get_connection():
+    return sqlite3.connect("coral_tech.db")
+
+
 def execute_query(query, params=(), fetch=False, commit=True):
     connection = sqlite3.connect("coral_tech.db")
     cursor = connection.cursor()
@@ -157,6 +138,27 @@ def execute_query(query, params=(), fetch=False, commit=True):
     finally:
         connection.close()
 
+
+def get_all_data(return_data=False):
+    """Muestra o devuelve todas las tablas en la base de datos."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    tables = [t[0] for t in cursor.fetchall()]
+
+    data_dict = {}
+
+    for table in tables:
+        df = pd.read_sql_query(f"SELECT * FROM {table}", conn)
+        data_dict[table] = df
+        if not return_data:
+            print(f"\n=== {table.upper()} ===")
+            print(df)
+
+    conn.close()
+
+    if return_data:
+        return data_dict
 
 
 # --------------- Products ---------------
@@ -210,7 +212,6 @@ def delete_product(id_producto: int):
     execute_query("DELETE FROM producto WHERE id_producto = ?", (id_producto,), commit=True)
 
 
-
 # --------------- Clients ---------------
 
 def get_clients():
@@ -220,6 +221,15 @@ def get_clients():
         JOIN provincia AS p ON c.id_provincia = p.id_provincia
         ORDER BY c.id_cliente
     """, fetch="all")
+
+
+def get_client_by_id(id_cliente: int):
+    return execute_query("""
+        SELECT c.id_cliente, c.nombre, p.nombre_provincia, c.domicilio
+        FROM cliente AS c
+        JOIN provincia AS p ON c.id_provincia = p.id_provincia
+        WHERE c.id_cliente = ?
+    """, (id_cliente,), fetch="one")
 
 
 def create_client(nombre, id_provincia, domicilio, telefono, email):
@@ -243,6 +253,7 @@ def create_client(nombre, id_provincia, domicilio, telefono, email):
     """, (nombre, id_provincia, domicilio, telefono, email), commit=True)
     print(f"[OK] Cliente agregado: {nombre} (provincia id {id_provincia})")
 
+
 def update_client(id_cliente: int, nombre: str, id_provincia: int, domicilio: str, telefono: str, email: str):
     execute_query("""
         UPDATE cliente
@@ -251,18 +262,70 @@ def update_client(id_cliente: int, nombre: str, id_provincia: int, domicilio: st
     """, (nombre, id_provincia, domicilio, telefono, email, id_cliente), commit=True)
 
 
-def get_client_by_id(id_cliente: int):
-    return execute_query("""
-        SELECT c.id_cliente, c.nombre, p.nombre_provincia, c.domicilio
-        FROM cliente AS c
-        JOIN provincia AS p ON c.id_provincia = p.id_provincia
-        WHERE c.id_cliente = ?
-    """, (id_cliente,), fetch="one")
-
-
 def delete_client(id_cliente):
     execute_query("DELETE FROM cliente WHERE id_cliente = ?", (id_cliente,))
     print(f"[OK] Cliente con ID {id_cliente} eliminado.")
+
+
+# --------------- Provinces ---------------
+
+def get_provincias():
+    """Devuelve lista de tuplas (id_provincia, nombre_provincia)."""
+    return execute_query("SELECT id_provincia, nombre_provincia FROM provincia ORDER BY id_provincia", fetch="all")
+
+
+def get_provincia_id_by_name(nombre_provincia: str):
+    """Busca id_provincia por nombre (insensible a mayúsc/minúsc y espacios)."""
+    if not nombre_provincia:
+        return None
+    nombre_limpio = nombre_provincia.strip().lower()
+    result = execute_query(
+        "SELECT id_provincia FROM provincia WHERE LOWER(TRIM(nombre_provincia)) = ?",
+        (nombre_limpio,), fetch="one"
+    )
+    if not result:
+        # debug helper: listar provincias disponibles
+        disponibles = execute_query("SELECT id_provincia, nombre_provincia FROM provincia ORDER BY id_provincia", fetch="all")
+        print(f"[DB DEBUG] Provincia buscada: '{nombre_provincia}' -> normalizado '{nombre_limpio}'. Provincias en BD: {disponibles}")
+        return None
+    return result[0]
+
+
+# --------------- Rubros ---------------
+
+def get_rubros():
+    return execute_query("SELECT id_rubro, nombre_rubro FROM rubro ORDER BY id_rubro", fetch="all")
+
+
+def get_rubro_id_by_name(nombre_rubro: str):
+    """Devuelve id_rubro a partir del nombre del rubro (insensible a mayúsculas y espacios)."""
+    if not nombre_rubro:
+        return None
+    nombre_limpio = nombre_rubro.strip().lower()
+    # Usamos LOWER en la consulta para ignorar mayúsculas/minúsculas
+    result = execute_query(
+        "SELECT id_rubro FROM rubro WHERE LOWER(TRIM(nombre_rubro)) = ?",
+        (nombre_limpio,),
+        fetch="one"
+    )
+    if not result:
+        # debug: listar rubros disponibles (solo para desarrollo)
+        disponibles = execute_query("SELECT id_rubro, nombre_rubro FROM rubro ORDER BY id_rubro", fetch="all")
+        print(f"[DB DEBUG] Rubro buscado: '{nombre_rubro}' -> normalizado '{nombre_limpio}'. Rubros en BD: {disponibles}")
+        return None
+    return result[0]
+
+
+def create_rubro(nombre_rubro: str):
+    execute_query("INSERT INTO rubro (nombre_rubro) VALUES (?)", (nombre_rubro,), commit=True)
+
+
+def update_rubro(id_rubro: int, nombre_rubro: str):
+    execute_query("UPDATE rubro SET nombre_rubro = ? WHERE id_rubro = ?", (nombre_rubro, id_rubro), commit=True)
+
+
+def delete_rubro(id_rubro: int):
+    execute_query("DELETE FROM rubro WHERE id_rubro = ?", (id_rubro,), commit=True)
 
 
 # --------------- Facturas ---------------
@@ -325,6 +388,7 @@ def get_invoice_details(factura_id: int):
     ]
     return detalles
 
+
 def get_detalles_por_factura(id_factura):
     with sqlite3.connect(DB_NAME) as conn:
         cursor = conn.cursor()
@@ -350,40 +414,90 @@ def get_detalles_por_factura(id_factura):
     return result
 
 
+def get_all_facturas():
+    """Obtiene todas las facturas con el total calculado y datos de cliente."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
 
-# -------------- Rubros ------------
-def get_rubros():
-    return execute_query("SELECT id_rubro, nombre_rubro FROM rubro ORDER BY id_rubro", fetch="all")
-
-def get_rubro_id_by_name(nombre_rubro: str):
-    """Devuelve id_rubro a partir del nombre del rubro (insensible a mayúsculas y espacios)."""
-    if not nombre_rubro:
-        return None
-    nombre_limpio = nombre_rubro.strip().lower()
-    # Usamos LOWER en la consulta para ignorar mayúsculas/minúsculas
-    result = execute_query(
-        "SELECT id_rubro FROM rubro WHERE LOWER(TRIM(nombre_rubro)) = ?",
-        (nombre_limpio,),
-        fetch="one"
-    )
-    if not result:
-        # debug: listar rubros disponibles (solo para desarrollo)
-        disponibles = execute_query("SELECT id_rubro, nombre_rubro FROM rubro ORDER BY id_rubro", fetch="all")
-        print(f"[DB DEBUG] Rubro buscado: '{nombre_rubro}' -> normalizado '{nombre_limpio}'. Rubros en BD: {disponibles}")
-        return None
-    return result[0]
-
-def create_rubro(nombre_rubro: str):
-    execute_query("INSERT INTO rubro (nombre_rubro) VALUES (?)", (nombre_rubro,), commit=True)
-
-def update_rubro(id_rubro: int, nombre_rubro: str):
-    execute_query("UPDATE rubro SET nombre_rubro = ? WHERE id_rubro = ?", (nombre_rubro, id_rubro), commit=True)
-
-def delete_rubro(id_rubro: int):
-    execute_query("DELETE FROM rubro WHERE id_rubro = ?", (id_rubro,), commit=True)
+    query = """
+        SELECT 
+            f.id_factura,
+            c.nombre AS cliente,
+            f.fecha,
+            SUM(df.cantidad * df.precio_unitario) AS total
+        FROM factura f
+        JOIN cliente c ON f.id_cliente = c.id_cliente
+        JOIN detalle_factura df ON f.id_factura = df.id_factura
+        GROUP BY f.id_factura, c.nombre, f.fecha
+        ORDER BY f.fecha DESC
+    """
+    cursor.execute(query)
+    data = cursor.fetchall()
+    conn.close()
+    return data
 
 
-# --------------- Operaciones sobre detalle_factura ---------------
+def get_all_detalle_factura():
+    """Obtiene todos los detalles de factura (factura, producto, cantidad, precio)."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    query = """
+        SELECT 
+            df.id_factura,
+            p.descripcion AS producto,
+            df.cantidad,
+            df.precio_unitario
+        FROM detalle_factura df
+        JOIN producto p ON df.id_producto = p.id_producto
+        ORDER BY df.id_factura
+    """
+    cursor.execute(query)
+    data = cursor.fetchall()
+    conn.close()
+    return data
+
+
+def delete_factura(id_factura: int):
+    """
+    Elimina una factura y devuelve al stock los productos asociados en detalle_factura.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    try:
+        # 1️⃣ Obtener los productos y cantidades asociados a la factura
+        cursor.execute("""
+            SELECT id_producto, cantidad
+            FROM detalle_factura
+            WHERE id_factura = ?
+        """, (id_factura,))
+        detalles = cursor.fetchall()
+
+        # 2️⃣ Devolver stock de cada producto
+        for id_producto, cantidad in detalles:
+            cursor.execute("""
+                UPDATE producto
+                SET stock = stock + ?
+                WHERE id_producto = ?
+            """, (cantidad, id_producto))
+
+        # 3️⃣ Borrar detalle y factura
+        cursor.execute("DELETE FROM detalle_factura WHERE id_factura = ?", (id_factura,))
+        cursor.execute("DELETE FROM factura WHERE id_factura = ?", (id_factura,))
+
+        conn.commit()
+        print(f"[OK] Factura {id_factura} eliminada. Stock restituido correctamente.")
+
+    except Exception as e:
+        conn.rollback()
+        print(f"[DB ERROR] Error al eliminar factura {id_factura}: {e}")
+
+    finally:
+        conn.close()
+
+
+# --------------- Invoice Products Operations ---------------
 
 def add_invoice_product(id_factura: int, id_producto: int, cantidad: int, precio_unitario: float):
     try:
@@ -453,114 +567,3 @@ def delete_invoice_product(id_factura: int, id_producto: int):
 
     except Exception as e:
         print(f"[DB ERROR] No se pudo eliminar producto de factura: {e}")
-
-# ---- agregar cerca de otras funciones DB (por ejemplo debajo de get_rubros) ----
-
-def get_provincias():
-    """Devuelve lista de tuplas (id_provincia, nombre_provincia)."""
-    return execute_query("SELECT id_provincia, nombre_provincia FROM provincia ORDER BY id_provincia", fetch="all")
-
-def get_provincia_id_by_name(nombre_provincia: str):
-    """Busca id_provincia por nombre (insensible a mayúsc/minúsc y espacios)."""
-    if not nombre_provincia:
-        return None
-    nombre_limpio = nombre_provincia.strip().lower()
-    result = execute_query(
-        "SELECT id_provincia FROM provincia WHERE LOWER(TRIM(nombre_provincia)) = ?",
-        (nombre_limpio,), fetch="one"
-    )
-    if not result:
-        # debug helper: listar provincias disponibles
-        disponibles = execute_query("SELECT id_provincia, nombre_provincia FROM provincia ORDER BY id_provincia", fetch="all")
-        print(f"[DB DEBUG] Provincia buscada: '{nombre_provincia}' -> normalizado '{nombre_limpio}'. Provincias en BD: {disponibles}")
-        return None
-    return result[0]
-
-DB_PATH = "coral_tech.db"
-
-
-def get_all_facturas():
-    """Obtiene todas las facturas con el total calculado y datos de cliente."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
-    query = """
-        SELECT 
-            f.id_factura,
-            c.nombre AS cliente,
-            f.fecha,
-            SUM(df.cantidad * df.precio_unitario) AS total
-        FROM factura f
-        JOIN cliente c ON f.id_cliente = c.id_cliente
-        JOIN detalle_factura df ON f.id_factura = df.id_factura
-        GROUP BY f.id_factura, c.nombre, f.fecha
-        ORDER BY f.fecha DESC
-    """
-    cursor.execute(query)
-    data = cursor.fetchall()
-    conn.close()
-    return data
-
-def get_all_detalle_factura():
-    """Obtiene todos los detalles de factura (factura, producto, cantidad, precio)."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
-    query = """
-        SELECT 
-            df.id_factura,
-            p.descripcion AS producto,
-            df.cantidad,
-            df.precio_unitario
-        FROM detalle_factura df
-        JOIN producto p ON df.id_producto = p.id_producto
-        ORDER BY df.id_factura
-    """
-    cursor.execute(query)
-    data = cursor.fetchall()
-    conn.close()
-    return data
-
-def delete_factura(id_factura: int):
-    """
-    Elimina una factura y devuelve al stock los productos asociados en detalle_factura.
-    """
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
-    try:
-        # 1️⃣ Obtener los productos y cantidades asociados a la factura
-        cursor.execute("""
-            SELECT id_producto, cantidad
-            FROM detalle_factura
-            WHERE id_factura = ?
-        """, (id_factura,))
-        detalles = cursor.fetchall()
-
-        # 2️⃣ Devolver stock de cada producto
-        for id_producto, cantidad in detalles:
-            cursor.execute("""
-                UPDATE producto
-                SET stock = stock + ?
-                WHERE id_producto = ?
-            """, (cantidad, id_producto))
-
-        # 3️⃣ Borrar detalle y factura
-        cursor.execute("DELETE FROM detalle_factura WHERE id_factura = ?", (id_factura,))
-        cursor.execute("DELETE FROM factura WHERE id_factura = ?", (id_factura,))
-
-        conn.commit()
-        print(f"[OK] Factura {id_factura} eliminada. Stock restituido correctamente.")
-
-    except Exception as e:
-        conn.rollback()
-        print(f"[DB ERROR] Error al eliminar factura {id_factura}: {e}")
-
-    finally:
-        conn.close()
-
-
-
-#-------
-def get_connection():
-    return sqlite3.connect("coral_tech.db")

@@ -133,7 +133,6 @@ class FacturaTab:
                     f"Ocurrió un problema al eliminar la factura:\n{e}"
                 )
 
-            
     def cargar_detalles_factura(self, id_factura):
         detalles = db.get_detalles_por_factura(id_factura)
         self.tree.delete(*self.tree.get_children())  # limpia antes de cargar
@@ -155,7 +154,6 @@ class FacturaTab:
 
         self.actualizar_total()
 
-
     def on_tree_click(self, event):
         item = self.tree.identify_row(event.y)
         column = self.tree.identify_column(event.x)
@@ -163,6 +161,7 @@ class FacturaTab:
             if item:
                 self.tree.delete(item)
                 self.actualizar_total()
+
 
 # =============================
 # FORMULARIO DE FACTURA (POPUP)

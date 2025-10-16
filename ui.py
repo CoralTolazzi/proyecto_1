@@ -9,7 +9,6 @@ from dashboard import DashboardWindow
 from dashboard import abrir_dashboard
 
 
-
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -17,7 +16,6 @@ class App(ctk.CTk):
         self.geometry("900x650")
         
         # --- LOGO PRINCIPAL ---
-        
         logo_img = ctk.CTkImage(light_image=Image.open("logo_coraltech.jpg"), size=(250, 90))
         logo_label = ctk.CTkLabel(self, image=logo_img, text="")
         logo_label.pack(pady=10)
@@ -68,7 +66,6 @@ class App(ctk.CTk):
             dropdowns={"Provincia": [p.value for p in Provincia]}
         )
 
-
         # --- Rubros ---
         def _create_rubro_and_refresh(nombre_rubro):
             db.create_rubro(nombre_rubro)
@@ -90,7 +87,6 @@ class App(ctk.CTk):
         )
         self.rubros_tab = rubros_tab  # para acceder desde el método _refresh_rubro_data
 
-
         # --- Facturas ---
         FacturaTab(self.tab_view)
 
@@ -99,26 +95,21 @@ class App(ctk.CTk):
             self,
             text="📊 Ver Dashboard",
             command=lambda: abrir_dashboard(self),
-            fg_color="#1f6aa5",
-            hover_color="#144870"
+            fg_color="#272f35",
+            hover_color="#6D8799"
         )
         dashboard_button.pack(pady=10)
-
-
-    
-    
 
     # --- Recarga la lista de rubros desde la base de datos ---
     def reload_rubros(self):
         rubros = db.get_rubros()
         return [r[1] for r in rubros] if rubros else []
-    
+
     def _refresh_rubro_data(self):
         """Recarga rubros desde la BD y actualiza el combo en Productos y la tabla Rubros."""
         nuevos_rubros = self.reload_rubros()
         self.product_tab.update_dropdown_options("Rubro", nuevos_rubros)
         self.rubros_tab._refresh()
-
 
     # --- Estilo visual de la tabla ---
     def _setup_treeview_style(self):
@@ -133,7 +124,7 @@ class App(ctk.CTk):
         )
         style.map(
             "Treeview",
-            background=[("selected", "#1f6aa5")],
+            background=[("selected", "#414447")],
             foreground=[("selected", "white")]
         )
 
